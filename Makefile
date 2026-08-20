@@ -100,3 +100,7 @@ demo: ## One command: infra + migrate + seed + run
 	$(MAKE) up
 	@until docker compose exec -T postgres pg_isready -U postgres -d docflow >/dev/null 2>&1; do sleep 1; done
 	$(MAKE) migrate seed dev
+
+.PHONY: diagrams
+diagrams: ## Validate every mermaid diagram in the repo
+	node scripts/check-mermaid.mjs

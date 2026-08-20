@@ -84,9 +84,13 @@
 
 ## B. Final Architecture Diagram
 
+> The complete, styled diagram set — pipeline, OCR tiers, RAG routing, span alignment,
+> injection defense, tenancy, deployment and CI — lives in **[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-sans-serif, system-ui, sans-serif','fontSize':'13px','lineColor':'#7C8798','primaryTextColor':'#ffffff','clusterBkg':'transparent','clusterBorder':'#7C8798'}}}%%
 flowchart TB
-    subgraph Client["Browser"]
+    subgraph Client["🖥️ Browser"]
         UI["Next.js 15 · RSC shell<br/>TanStack Query · Zustand x2"]
         VIEW["PDF Viewer<br/>pdfjs canvas + highlight overlay"]
     end
@@ -153,24 +157,43 @@ flowchart TB
     API --> SEN & OTEL
     Worker --> SEN & OTEL
 
-    style PG fill:#1e3a5f,color:#fff
-    style Stages fill:#3d2b4f,color:#fff
-    style S4 fill:#5c3d2e,color:#fff
-    style AI fill:#2d4a3e,color:#fff
+    classDef client fill:#24466E,stroke:#16293F,color:#fff,stroke-width:1px
+    classDef edge   fill:#2E5A86,stroke:#1C3855,color:#fff,stroke-width:1px
+    classDef api    fill:#1F6F6B,stroke:#124542,color:#fff,stroke-width:1px
+    classDef work   fill:#5B4080,stroke:#392750,color:#fff,stroke-width:1px
+    classDef key    fill:#A8641A,stroke:#6B3F10,color:#fff,stroke-width:2px
+    classDef store  fill:#7A4A1E,stroke:#4C2E12,color:#fff,stroke-width:1px
+    classDef ai     fill:#2F6B3D,stroke:#1C4126,color:#fff,stroke-width:1px
+    classDef obs    fill:#4A5568,stroke:#2D3542,color:#fff,stroke-width:1px
+
+    class UI,VIEW client
+    class BFF edge
+    class MW,RT,SVC,RAG api
+    class ORCH,S1,S2,S3,S5,CRON,POOL work
+    class S4 key
+    class PG,RD,S3S store
+    class ROUTER,CALL,P1,P2,P3 ai
+    class SEN,OTEL obs
 ```
 
 **The provenance chain, end to end:**
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-sans-serif, system-ui, sans-serif','fontSize':'13px','lineColor':'#7C8798','primaryTextColor':'#ffffff'}}}%%
 flowchart LR
-    D["Document"] --> P["Page<br/>text + word boxes"]
-    P --> C["Char span<br/>from fuzzy alignment"]
-    C --> R["Rectangles<br/>normalized 0..1"]
-    R --> F["Fact<br/>+ citation_status<br/>+ confidence"]
-    F --> T["Task<br/>+ due date<br/>+ reminder"]
-    T -.->|"click 'source'"| R
-    style C fill:#5c3d2e,color:#fff
-    style R fill:#5c3d2e,color:#fff
+    D["<b>Document</b><br/><i>canonical PDF</i>"] --> P["<b>Page</b><br/><i>text + word boxes</i>"]
+    P --> C["<b>Char span</b><br/><i>fuzzy alignment</i>"]
+    C --> R["<b>Rectangles</b><br/><i>normalized 0–1</i>"]
+    R --> F["<b>Fact</b><br/><i>citation_status<br/>+ confidence</i>"]
+    F --> T["<b>Task</b><br/><i>due date<br/>+ reminder</i>"]
+    T -. "click source" .-> R
+
+    classDef step fill:#24466E,stroke:#16293F,color:#fff,stroke-width:1px
+    classDef key  fill:#A8641A,stroke:#6B3F10,color:#fff,stroke-width:2px
+    classDef out  fill:#2F6B3D,stroke:#1C4126,color:#fff,stroke-width:1px
+    class D,P,F step
+    class C,R key
+    class T out
 ```
 
 ---

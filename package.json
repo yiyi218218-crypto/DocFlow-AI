@@ -1,0 +1,17 @@
+{
+  "name": "docflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DocFlow AI — turn documents into decisions, deadlines, tasks and actions",
+  "scripts": {
+    "check:mermaid": "node scripts/check-mermaid.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^26.0.0",
+    "mermaid": "^11.4.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

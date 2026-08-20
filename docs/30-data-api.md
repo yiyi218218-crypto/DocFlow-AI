@@ -285,6 +285,7 @@ Alembic, with these rules:
 ## Appendix C — Database ER Diagram
 
 ```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-sans-serif, system-ui, sans-serif','fontSize':'12px','lineColor':'#7C8798','primaryColor':'#24466E','primaryTextColor':'#ffffff','primaryBorderColor':'#16293F','attributeBackgroundColorOdd':'#F4F6F9','attributeBackgroundColorEven':'#E8ECF2'}}}%%
 erDiagram
     USERS ||--o{ MEMBERSHIPS : "belongs to"
     USERS ||--o{ DOCUMENTS : uploads

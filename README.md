@@ -12,6 +12,7 @@ This repository currently contains the complete technical and product blueprint 
 
 | Doc | Sections | Contains |
 |---|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | — | **All 12 architecture diagrams** — system, pipeline, OCR tiers, RAG routing, span alignment, injection defense, tenancy, deployment, CI, ER |
 | [`docs/00-product.md`](docs/00-product.md) | 1–7 | Executive summary, vision, users, journeys, differentiation, **MVP scope**, roadmap |
 | [`docs/10-architecture.md`](docs/10-architecture.md) | 8, 11, 15, 17, 26 | System architecture, document pipeline, background jobs, multi-tenancy, deployment |
 | [`docs/20-ai.md`](docs/20-ai.md) | 9, 10, 19, 20 | Extraction architecture, RAG, **evaluation framework**, cost model |

@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import DateTime, MetaData, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, mapped_column
 
@@ -37,9 +38,11 @@ class Base(DeclarativeBase):
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
+    # Every timestamp is timestamptz. Never a naive `timestamp`.
     type_annotation_map = {
         datetime: DateTime(timezone=True),
-        dict[str, Any]: __import__("sqlalchemy.dialects.postgresql", fromlist=["JSONB"]).JSONB,
+        dict[str, Any]: JSONB,
+        list[dict[str, Any]]: JSONB,
     }
 
 
