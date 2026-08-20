@@ -25,19 +25,5 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO docflow;
 
--- uuidv7() is Postgres 18+; provide a compatible shim for pg16.
--- Time-ordered like a bigint, non-enumerable like a uuid4.
-CREATE OR REPLACE FUNCTION uuidv7() RETURNS uuid AS $$
-DECLARE
-  unix_ts_ms bytea;
-  uuid_bytes bytea;
-BEGIN
-  unix_ts_ms = substring(int8send((extract(epoch FROM clock_timestamp()) * 1000)::bigint) FROM 3);
-  uuid_bytes = unix_ts_ms || gen_random_bytes(10);
-  -- version 7
-  uuid_bytes = set_byte(uuid_bytes, 6, (b'0111' || get_byte(uuid_bytes, 6)::bit(4))::bit(8)::int);
-  -- variant 10xx
-  uuid_bytes = set_byte(uuid_bytes, 8, (b'10'   || get_byte(uuid_bytes, 8)::bit(6))::bit(8)::int);
-  RETURN encode(uuid_bytes, 'hex')::uuid;
-END
-$$ LANGUAGE plpgsql VOLATILE;
+-- NOTE: uuidv7() is created by migration 0000_bootstrap, not here, so that a
+-- managed Postgres (which never runs this file) gets it too.
