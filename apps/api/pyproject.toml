@@ -97,6 +97,8 @@ ignore = [
 # vendor SDK, which enforces it properly. Wrapping in asyncio.timeout on top
 # would double-cancel and lose the SDK's own retry/telemetry behaviour.
 "src/docflow/ai/llm/*.py" = ["ASYNC109", "RUF001", "RUF002", "RUF003"]
+# ARQ reads these as class attributes on WorkerSettings; they are its API.
+"src/docflow/worker/main.py" = ["RUF012"]
 
 [tool.mypy]
 python_version = "3.12"

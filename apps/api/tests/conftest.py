@@ -30,6 +30,28 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_app_engine():  # type: ignore[no-untyped-def]
+    """Detach the application's module-level engine from the previous test's loop.
+
+    docflow.core.database.engine is created once at import and pools asyncpg
+    connections, but each test runs in a fresh event loop — so a pooled
+    connection from the last test belongs to a loop that is already closed.
+
+    dispose(close=False) abandons those connections without awaiting on the dead
+    loop; the next checkout opens fresh ones in the current loop.
+    """
+    from docflow.core import database
+
+    await database.engine.dispose(close=False)
+    if database._SystemSessionFactory is not None:
+        await database._system_engine.dispose(close=False)
+    yield
+    await database.engine.dispose(close=False)
+    if database._SystemSessionFactory is not None:
+        await database._system_engine.dispose(close=False)
+
+
 @pytest_asyncio.fixture
 async def admin_engine():  # type: ignore[no-untyped-def]
     engine = create_async_engine(settings.database_admin_url, poolclass=NullPool)

@@ -53,8 +53,13 @@ class User(Base, TimestampMixin):
     locked_until: Mapped[datetime | None]
     last_login_at: Mapped[datetime | None]
 
+    # foreign_keys is required: memberships has two FKs to users (user_id and
+    # invited_by), so the join is otherwise ambiguous.
     memberships: Mapped[list[Membership]] = relationship(
-        back_populates="user", cascade="all, delete-orphan", lazy="selectin"
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        foreign_keys="Membership.user_id",
     )
 
     __table_args__ = (

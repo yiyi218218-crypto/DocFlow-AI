@@ -105,10 +105,39 @@ async def tenant_session(
         yield session
 
 
+_system_engine: Any = None
+_SystemSessionFactory: Any = None
+
+
+def _get_system_factory() -> Any:
+    """Lazily build the elevated engine, so importing this module never opens a
+    connection the process may not need."""
+    global _system_engine, _SystemSessionFactory
+    if _SystemSessionFactory is None:
+        _system_engine = create_async_engine(
+            settings.database_admin_url,
+            echo=settings.db_echo,
+            pool_size=3,
+            max_overflow=2,
+            pool_pre_ping=True,
+        )
+        _SystemSessionFactory = async_sessionmaker(
+            _system_engine, class_=AsyncSession, expire_on_commit=False, autoflush=False
+        )
+    return _SystemSessionFactory
+
+
 @asynccontextmanager
 async def system_session() -> AsyncIterator[AsyncSession]:
-    """Cross-tenant access for cron jobs. Deliberately separate and rarely used."""
-    async with SessionFactory() as session, session.begin():
+    """Cross-tenant access for cron jobs and the usage ledger.
+
+    Connects as the owner/migration role, which is not subject to RLS. The
+    ordinary application role would give a session with no tenant GUC — which
+    correctly sees zero rows and fails every INSERT with a WITH CHECK violation.
+    Retention sweeps, reminder scheduling and cost accounting legitimately span
+    tenants, so they get the elevated role deliberately, in one greppable place.
+    """
+    async with _get_system_factory()() as session, session.begin():
         yield session
 
 
