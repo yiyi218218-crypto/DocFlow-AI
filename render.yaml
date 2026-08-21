@@ -23,7 +23,7 @@ services:
     runtime: docker
     plan: free
     region: singapore # ~50-70ms to Dhaka; co-located with the database
-    dockerfilePath: ./infra/docker/api.Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     dockerCommand: >-
       sh -c "alembic upgrade head &&

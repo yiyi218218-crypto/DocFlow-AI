@@ -7,6 +7,9 @@
 #
 # On a single-service deployment neither is needed: WORKER_MODE=inline processes
 # documents inside the API process. See render.yaml.
+#
+# Lives at the repo root because that is where every PaaS Docker runtime looks
+# by default; the build context is the repo root either way.
 
 FROM python:3.12-slim-bookworm
 
