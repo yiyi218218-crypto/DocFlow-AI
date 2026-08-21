@@ -52,6 +52,28 @@ async def _reset_app_engine():  # type: ignore[no-untyped-def]
         await database._system_engine.dispose(close=False)
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_rate_limits():  # type: ignore[no-untyped-def]
+    """Clear rate-limit buckets between tests.
+
+    Every test shares one client IP, so the auth bucket (5/min) would otherwise
+    be exhausted after two or three tests and the rest would fail on 429. The
+    limiter is deliberately left ENABLED rather than stubbed out, so the
+    RateLimit-* headers are still exercised for real.
+    """
+    from docflow.worker import queue as queue_module
+
+    # The ARQ pool is a module global bound to the loop that created it, and each
+    # test gets a fresh loop. Drop it so a new pool is built in this one.
+    queue_module._pool = None
+
+    redis = await queue_module.get_queue()
+    if keys := await redis.keys("rl:*"):
+        await redis.delete(*keys)
+    yield
+    queue_module._pool = None
+
+
 @pytest_asyncio.fixture
 async def admin_engine():  # type: ignore[no-untyped-def]
     engine = create_async_engine(settings.database_admin_url, poolclass=NullPool)
@@ -106,7 +128,7 @@ async def tenants(admin_session: AsyncSession) -> AsyncIterator[TenantFixture]:
     ):
         await admin_session.execute(
             text("INSERT INTO users (id, email, full_name) VALUES (:id, :email, :name)"),
-            {"id": user, "email": f"{tag}-{suffix}@example.test", "name": f"User {tag.upper()}"},
+            {"id": user, "email": f"{tag}-{suffix}@example.com", "name": f"User {tag.upper()}"},
         )
         await admin_session.execute(
             text(
