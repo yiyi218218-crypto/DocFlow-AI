@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
+          // NOT 'same-origin': that severs the popup handle Firebase needs
+          // to complete signInWithPopup, and the flow fails with an opaque
+          // internal error. allow-popups keeps the isolation that matters.
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
         ],
       },
     ];

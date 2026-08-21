@@ -1,11 +1,17 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/app/providers';
 import { ApiError, getSession, login, loginWithGoogle } from '@/lib/api';
-import { clearFirebaseSession, googleSignInAvailable, signInWithGoogle } from '@/lib/firebase';
+import {
+  clearFirebaseSession,
+  completeGoogleRedirect,
+  GoogleSignInError,
+  googleSignInAvailable,
+  signInWithGoogle,
+} from '@/lib/firebase';
 
 const DEMO_EMAIL = 'demo@docflow.ai';
 const DEMO_PASSWORD = 'demo-workspace-2026';
@@ -39,28 +45,57 @@ export default function LoginPage() {
     }
   }
 
+  async function exchangeAndEnter(idToken: string) {
+    await loginWithGoogle(idToken);
+    // Firebase's own session is not used once we hold a DocFlow token.
+    void clearFirebaseSession();
+    setSession(await getSession());
+    router.push('/documents');
+  }
+
+  function reportGoogleFailure(err: unknown) {
+    // Say what actually went wrong. A generic "did not complete" is unhelpful
+    // to the user AND hides the cause from whoever has to debug it.
+    if (err instanceof ApiError) {
+      setError(err.problem.detail);
+    } else if (err instanceof GoogleSignInError) {
+      setError(err.message);
+    } else {
+      setError('Google sign-in did not complete. Try again, or use your email.');
+    }
+    setGoogleBusy(false);
+  }
+
+  // Finish a sign-in that fell back to a full-page redirect.
+  useEffect(() => {
+    let cancelled = false;
+    completeGoogleRedirect()
+      .then(async (idToken) => {
+        if (!idToken || cancelled) return;
+        setGoogleBusy(true);
+        await exchangeAndEnter(idToken);
+      })
+      .catch((err) => {
+        if (!cancelled) reportGoogleFailure(err);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Runs once on mount; the redirect result is only ever available then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function continueWithGoogle() {
     setGoogleBusy(true);
     setError(null);
     try {
       const idToken = await signInWithGoogle();
-      await loginWithGoogle(idToken);
-      // Firebase's own session is not used once we hold a DocFlow token.
-      void clearFirebaseSession();
-      setSession(await getSession());
-      router.push('/documents');
+      // null means the flow escalated to a redirect — the page is navigating
+      // away, so there is nothing more to do here.
+      if (idToken === null) return;
+      await exchangeAndEnter(idToken);
     } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-        setGoogleBusy(false);
-        return; // The user changed their mind; that is not an error.
-      }
-      setError(
-        err instanceof ApiError
-          ? err.problem.detail
-          : 'Google sign-in did not complete. Try again, or use your email.',
-      );
-      setGoogleBusy(false);
+      reportGoogleFailure(err);
     }
   }
 
