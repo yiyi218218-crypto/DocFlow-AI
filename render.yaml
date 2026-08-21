@@ -1,0 +1,98 @@
+# Render Blueprint — free-tier deployment.
+#
+# One web service and one Postgres. That is the whole stack, because two
+# dependencies were deliberately removed rather than paid for:
+#
+#   * object storage -> STORAGE_BACKEND=postgres keeps blobs in the database
+#     (core/blobstore.py explains when NOT to do this);
+#   * background worker -> WORKER_MODE=inline processes documents in an asyncio
+#     task inside the API. Render's free tier has no background workers, and at
+#     30 pages per document this is genuinely fine. The stage machine means a
+#     spin-down mid-run resumes rather than restarts.
+#
+# Trade-offs you are accepting on the free plan, stated plainly:
+#   * the web service spins down after ~15 minutes idle; the first request after
+#     that takes ~30-50s to cold start;
+#   * Render's free Postgres EXPIRES AFTER 30 DAYS. For a demo that outlives
+#     that, point DATABASE_URL at a Neon free database instead — it does not
+#     expire and the schema is identical.
+
+services:
+  - type: web
+    name: docflow-api
+    runtime: docker
+    plan: free
+    region: singapore # ~50-70ms to Dhaka; co-located with the database
+    dockerfilePath: ./infra/docker/api.Dockerfile
+    dockerContext: .
+    dockerCommand: >-
+      sh -c "alembic upgrade head &&
+      uvicorn docflow.main:app --host 0.0.0.0 --port $PORT --workers 1"
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+
+      # One service, no external dependencies beyond Postgres.
+      - key: STORAGE_BACKEND
+        value: postgres
+      - key: WORKER_MODE
+        value: inline
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: docflow-db
+          property: connectionString
+      # Migrations and cross-tenant cron need the owner role. On Render's
+      # managed Postgres the provisioned user owns the schema, so it is the
+      # same connection string; on a self-managed cluster, split these.
+      - key: DATABASE_ADMIN_URL
+        fromDatabase:
+          name: docflow-db
+          property: connectionString
+
+      - key: SECRET_KEY
+        generateValue: true
+
+      - key: OPENAI_API_KEY
+        sync: false # set in the dashboard; never committed
+
+      # Measured routing — see docs/EVALUATION.md §6.
+      - key: LLM_TIER_FAST
+        value: openai:gpt-4.1-nano
+      - key: LLM_TIER_BALANCED
+        value: openai:gpt-4o-mini
+      - key: LLM_TIER_DEEP
+        value: openai:gpt-4.1-mini
+      - key: EMBEDDING_MODEL
+        value: openai:text-embedding-3-small
+
+      # Hard cost ceilings. Measured cost is ~$0.0009/document, so $0.25/day is
+      # roughly 280 documents — far above demo traffic, and a hard stop on a
+      # runaway loop or an abusive uploader.
+      - key: DAILY_BUDGET_PER_WORKSPACE_USD
+        value: "0.25"
+      - key: MAX_COST_PER_DOCUMENT_USD
+        value: "0.10"
+      - key: FREE_TIER_DOCUMENTS_PER_MONTH
+        value: "20"
+      - key: MAX_UPLOAD_BYTES
+        value: "10485760"
+      - key: MAX_PAGE_COUNT
+        value: "30"
+
+      - key: CORS_ORIGINS
+        sync: false # the Vercel URL, set after the frontend deploys
+
+databases:
+  - name: docflow-db
+    plan: free
+    region: singapore
+    databaseName: docflow
+    user: docflow
+    postgresMajorVersion: "16" # pgvector ships with Render's PG16 image

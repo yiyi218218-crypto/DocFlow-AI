@@ -3,6 +3,11 @@ import { expect, test } from '@playwright/test';
 /**
  * The flagship end-to-end test.
  *
+ * Selectors target `data-filename`, which the seed controls, rather than the
+ * document title, which the extraction model writes. Coupling an E2E assertion
+ * to model output makes it fail whenever the model gets *better* — which is
+ * exactly what happened when real extraction replaced the stub.
+ *
  * If this passes, the product's differentiator works: a user clicks an
  * extracted fact and the exact source sentence highlights on the right page.
  * If it regresses, every citation in the app is silently wrong — which is worse
@@ -18,13 +23,15 @@ async function signIn(page: import('@playwright/test').Page) {
 test('sign in and list the seeded documents', async ({ page }) => {
   await signIn(page);
   await expect(page.getByRole('heading', { name: 'Documents' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /University of Dhaka/i })).toBeVisible();
+  // Four seeded documents, one of them Bangla.
+  await expect(page.getByTestId('document-row')).toHaveCount(4);
+  await expect(page.locator('[data-filename="du-admission-circular-2026.pdf"]')).toBeVisible();
 });
 
 test('clicking a deadline highlights its source span on the correct page', async ({ page }) => {
   await signIn(page);
 
-  await page.getByRole('link', { name: /University of Dhaka/i }).click();
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
 
   // The analysis panel groups facts by kind; deadlines come first.
@@ -58,7 +65,7 @@ test('clicking a deadline highlights its source span on the correct page', async
 
 test('the highlight survives a page reload', async ({ page }) => {
   await signIn(page);
-  await page.getByRole('link', { name: /University of Dhaka/i }).click();
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   // Wait for the route to settle before clicking: a click issued mid-navigation
   // lands on an element that is about to be replaced and is silently lost.
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
@@ -82,7 +89,7 @@ test('the highlight survives a page reload', async ({ page }) => {
 
 test('the deadline shows the raw date text from the document', async ({ page }) => {
   await signIn(page);
-  await page.getByRole('link', { name: /University of Dhaka/i }).click();
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
 
   // Always show what the document actually said, so a misparse is visible and
@@ -92,7 +99,7 @@ test('the deadline shows the raw date text from the document', async ({ page }) 
 
 test('citation verification rate is reported', async ({ page }) => {
   await signIn(page);
-  await page.getByRole('link', { name: /University of Dhaka/i }).click();
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
   await expect(page.getByText(/% citations verified/)).toBeVisible();
 });

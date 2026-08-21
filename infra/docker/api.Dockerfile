@@ -1,27 +1,33 @@
-# One image, two entrypoints.
+# One image, two roles.
 #
 # The API and the worker share a package, so they must share an image — building
 # them separately is how the worker ends up on an older pymupdf and produces
-# subtly different coordinates than the API expects. Only the CMD differs.
+# different coordinates than the API expects. The default command runs the API;
+# the worker runs the same image with `arq docflow.worker.main.WorkerSettings`.
+#
+# On a single-service deployment neither is needed: WORKER_MODE=inline processes
+# documents inside the API process. See render.yaml.
 
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
     UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1
+    UV_COMPILE_BYTECODE=1 \
+    PORT=8000
 
-# tesseract-ocr-ben is the Bangla traineddata. Without it Tesseract fails the
-# whole page rather than falling back, so a partial capability becomes none.
-# libreoffice is only needed for DOCX; documents/validation.py degrades to text
-# extraction when it is absent, so it can be dropped to save ~450 MB.
+# tesseract-ocr-ben is not optional. It is the *primary* text path for Bengali
+# pages, not a fallback: a Bengali PDF's own text layer is measurably worse than
+# OCR of the same page (docs/EVALUATION.md §7). Without this traineddata the
+# wedge silently produces unverifiable citations.
+#
+# LibreOffice is deliberately NOT installed — it is a ~450 MB layer used only
+# for DOCX, and documents/validation.py falls back to OOXML text extraction
+# without it. Layout fidelity is lost; deadlines and requirements survive, which
+# is what the product is for. Add `libreoffice-writer-nogui` if you need it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-ben \
-        libreoffice-writer-nogui \
-        fonts-noto-core \
-        fonts-noto-ui-core \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,7 +35,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Dependencies first: this layer is cached unless the lockfile changes.
+# Dependencies first: cached unless the lockfile changes.
 COPY apps/api/pyproject.toml apps/api/uv.lock* ./
 RUN uv sync --no-dev --no-install-project
 
@@ -37,21 +43,14 @@ COPY apps/api/src ./src
 COPY apps/api/alembic.ini ./
 RUN uv sync --no-dev
 
-# Never run as root.
 RUN useradd --create-home --uid 10001 docflow && chown -R docflow:docflow /app
 USER docflow
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# ---------------------------------------------------------------- api --------
-FROM base AS api
 EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
-CMD ["uvicorn", "docflow.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS "http://localhost:${PORT}/health" || exit 1
 
-# ------------------------------------------------------------- worker --------
-FROM base AS worker
-# ARQ drains the in-flight stage on SIGTERM before exiting, so a rolling deploy
-# does not abandon a half-processed document.
-CMD ["arq", "docflow.worker.main.WorkerSettings"]
+# Shell form so $PORT expands — hosting platforms assign it at runtime.
+CMD uvicorn docflow.main:app --host 0.0.0.0 --port ${PORT} --workers 1

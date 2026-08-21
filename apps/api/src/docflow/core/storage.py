@@ -22,6 +22,7 @@ import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 
+from docflow.core import blobstore
 from docflow.core.config import settings
 from docflow.core.logging import get_logger
 
@@ -30,6 +31,10 @@ logger = get_logger(__name__)
 # Files land here first and are promoted only after validation passes, so an
 # unvalidated upload is never reachable through a normal document key.
 QUARANTINE_PREFIX = "quarantine"
+
+
+def _use_postgres() -> bool:
+    return settings.storage_backend == "postgres"
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +100,9 @@ async def put_object(
     key: str, data: bytes, *, content_type: str = "application/octet-stream"
 ) -> StoredObject:
     """boto3 is synchronous; keep it off the event loop."""
+    if _use_postgres():
+        result = await blobstore.put_object(key, data, content_type=content_type)
+        return StoredObject(key=result.key, size_bytes=result.size_bytes, sha256=result.sha256)
     return await asyncio.to_thread(_put_sync, key, data, content_type)
 
 
@@ -104,6 +112,8 @@ def _get_sync(key: str) -> bytes:
 
 
 async def get_object(key: str) -> bytes:
+    if _use_postgres():
+        return await blobstore.get_object(key)
     return await asyncio.to_thread(_get_sync, key)
 
 
@@ -118,6 +128,9 @@ def _copy_sync(source: str, destination: str) -> None:
 
 async def promote(source_key: str, destination_key: str) -> None:
     """Move a validated upload out of quarantine."""
+    if _use_postgres():
+        await blobstore.promote(source_key, destination_key)
+        return
     await asyncio.to_thread(_copy_sync, source_key, destination_key)
 
 
@@ -131,6 +144,9 @@ def _delete_sync(keys: list[str]) -> None:
 
 
 async def delete_objects(keys: list[str]) -> None:
+    if _use_postgres():
+        await blobstore.delete_objects(keys)
+        return
     await asyncio.to_thread(_delete_sync, keys)
 
 
@@ -143,6 +159,8 @@ def _list_sync(prefix: str) -> list[str]:
 
 
 async def list_prefix(prefix: str) -> list[str]:
+    if _use_postgres():
+        return await blobstore.list_prefix(prefix)
     return await asyncio.to_thread(_list_sync, prefix)
 
 
@@ -166,6 +184,14 @@ def presign_get(
     result of an access decision, never the mechanism for one. Never logged (the
     structlog redaction list covers presigned_url).
     """
+    if _use_postgres():
+        return blobstore.presign_get(
+            key,
+            expires_in=expires_in,
+            download_filename=download_filename,
+            content_type=content_type,
+        )
+
     params: dict[str, Any] = {"Bucket": settings.s3_bucket, "Key": key}
     if download_filename:
         safe = download_filename.replace('"', "")
@@ -193,10 +219,14 @@ def _ensure_bucket_sync() -> None:
 
 async def ensure_bucket() -> None:
     """Create the bucket if missing. Local convenience; a no-op in production."""
+    if _use_postgres():
+        return
     await asyncio.to_thread(_ensure_bucket_sync)
 
 
 async def check_storage() -> bool:
+    if _use_postgres():
+        return await blobstore.check_storage()
     try:
         await asyncio.to_thread(lambda: _client().head_bucket(Bucket=settings.s3_bucket))
         return True

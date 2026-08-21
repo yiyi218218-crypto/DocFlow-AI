@@ -7,6 +7,7 @@ library a contained change.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Any
 
@@ -35,12 +36,20 @@ async def close_queue() -> None:
         _pool = None
 
 
+# Inline tasks are tracked so they are not garbage-collected mid-flight, which
+# asyncio does not prevent on its own.
+_inline_tasks: set[asyncio.Task[Any]] = set()
+
+
 async def enqueue_document(document_id: uuid.UUID, workspace_id: uuid.UUID) -> str | None:
     """Queue a document for processing.
 
     `_job_id` is the document id, so a double-submit collapses into one job
     rather than running the pipeline twice.
     """
+    if settings.worker_mode == "inline":
+        return _run_inline(document_id, workspace_id)
+
     queue = await get_queue()
     job = await queue.enqueue_job(
         "process_document_job",
@@ -56,6 +65,24 @@ async def enqueue_document(document_id: uuid.UUID, workspace_id: uuid.UUID) -> s
     return str(job.job_id)
 
 
+def _run_inline(document_id: uuid.UUID, workspace_id: uuid.UUID) -> str:
+    """Process in this process, in the background, without Redis."""
+    from docflow.pipeline.orchestrator import process_document
+
+    async def _run() -> None:
+        try:
+            await process_document(document_id, workspace_id)
+        except Exception:
+            logger.exception("inline.process_failed", document_id=str(document_id))
+
+    task = asyncio.create_task(_run())
+    _inline_tasks.add(task)
+    task.add_done_callback(_inline_tasks.discard)
+
+    logger.info("queue.inline", document_id=str(document_id))
+    return f"inline:{document_id}"
+
+
 async def queue_depth() -> dict[str, Any]:
     """Queue depth for the health endpoint and the alerting rule."""
     queue = await get_queue()
@@ -63,6 +90,8 @@ async def queue_depth() -> dict[str, Any]:
 
 
 async def check_redis() -> bool:
+    if settings.worker_mode == "inline":
+        return True  # not a dependency in this mode
     try:
         queue = await get_queue()
         await queue.ping()

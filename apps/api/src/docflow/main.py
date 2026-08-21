@@ -60,6 +60,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         await assert_transaction_pooling()
 
+    # Bengali OCR is the primary text path for Bangla pages, not a fallback.
+    # Log its absence loudly at boot rather than discovering it when a Bangla
+    # circular quietly yields no verifiable citations.
+    from docflow.documents import ocr
+
+    if not ocr.is_available():
+        logger.warning("startup.ocr_unavailable", impact="scanned and Bangla pages")
+    elif "ben" not in ocr.available_languages():
+        logger.warning("startup.bengali_traineddata_missing", impact="Bangla accuracy")
+    else:
+        logger.info("startup.ocr_ready", languages=ocr._language_string())
+
     yield
 
     from docflow.worker.queue import close_queue

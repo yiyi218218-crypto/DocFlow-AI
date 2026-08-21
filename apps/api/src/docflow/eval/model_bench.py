@@ -156,7 +156,10 @@ async def main() -> None:
     ).split(",")
 
     print(f"\n  {len(CASES)} documents · {len(models)} models\n")
-    header = f"  {'model':<14} {'facts':>5} {'verified':>9} {'partial':>8} {'unver':>6} {'deadline✓':>10} {'cost $':>9}"
+    header = (
+        f"  {'model':<14} {'facts':>5} {'verified':>9} {'partial':>8} "
+        f"{'unver':>6} {'deadline':>9} {'cost':>9}"
+    )
     print(header)
     print("  " + "-" * (len(header) - 2))
 

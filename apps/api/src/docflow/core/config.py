@@ -48,10 +48,25 @@ class Settings(BaseSettings):
     db_max_overflow: int = 5
     db_echo: bool = False
 
+    # --- jobs -------------------------------------------------------------
+    # "queue"  : enqueue to Redis, a separate ARQ worker processes it.
+    # "inline" : process in an asyncio task inside the API process.
+    # Inline exists because free hosting tiers give you one web service and no
+    # background worker. It is genuinely fine at this scale — documents are
+    # capped at 30 pages and take ~10-30s — and the stage machine means a
+    # process restart mid-run resumes rather than restarts. Use "queue" the
+    # moment throughput matters, so a slow document cannot occupy a request
+    # worker's event loop.
+    worker_mode: Literal["queue", "inline"] = "queue"
+
     # --- redis ------------------------------------------------------------
     redis_url: str = "redis://localhost:6379/0"
 
     # --- object storage ---------------------------------------------------
+    # "s3" for MinIO/R2/S3; "postgres" keeps blobs in the database, which is what
+    # makes a single-database free deployment possible. See core/blobstore.py for
+    # when NOT to use it.
+    storage_backend: Literal["s3", "postgres"] = "s3"
     s3_endpoint_url: str | None = "http://localhost:9000"
     s3_region: str = "auto"
     s3_access_key_id: str = "docflow"

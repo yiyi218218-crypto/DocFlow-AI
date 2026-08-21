@@ -104,6 +104,8 @@ function DocumentRow({ document }: { document: DocumentSummary }) {
     <li>
       <Link
         href={`/documents/${document.id}`}
+        data-testid="document-row"
+        data-filename={document.original_filename}
         className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface-2"
       >
         <div className="min-w-0 flex-1">
