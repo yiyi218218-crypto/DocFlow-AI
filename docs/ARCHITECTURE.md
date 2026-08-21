@@ -166,7 +166,7 @@ flowchart TB
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-sans-serif, system-ui, sans-serif','fontSize':'12px','lineColor':'#7C8798','primaryTextColor':'#ffffff'}}}%%
 flowchart TB
-    PAGE(["page"]) --> T1{"<b>Tier 1</b> — native text layer<br/>≥120 chars · ≥40% box coverage<br/>· &lt;15% garbage"}
+    PAGE(["page"]) --> T1{"<b>Tier 1</b> — native text layer<br/>≥120 chars · ≥0.5% box coverage<br/>· &lt;15% garbage"}
     T1 -- pass --> OKA["<b>text + word boxes</b><br/>free · span citations"]
     T1 -- fail --> T2{"<b>Tier 2</b> — Tesseract eng+ben<br/>mean conf ≥70<br/>· dict hit ≥35%"}
     T2 -- pass --> OKB["<b>text + word boxes</b><br/>free · span citations"]

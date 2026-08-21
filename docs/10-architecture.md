@@ -183,8 +183,11 @@ The worker's job body is: *"advance document D to completion."* On each invocati
 ```
 For each page:
   1. Native text layer (PyMuPDF).
-     Accept if: chars ≥ 120  AND  word-box coverage ≥ 40% of page area
+     Accept if: chars ≥ 120  AND  word-box coverage ≥ 0.5% of page area
                 AND garbage-char ratio < 0.15
+     (0.5%, not 40% as an earlier draft said — MEASURED word-box coverage on A4:
+      blank 0.000 | one line 0.012 | four lines 0.025 | dense full page 0.309.
+      A 40% gate would route every real page to OCR.)
   2. Else: render 300 DPI → deskew/denoise (OpenCV) → Tesseract `eng+ben`, TSV output
      → word-level boxes and per-word confidence.
      Accept if: mean word confidence ≥ 70 AND dictionary-hit ratio ≥ 0.35

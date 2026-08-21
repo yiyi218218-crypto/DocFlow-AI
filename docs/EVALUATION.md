@@ -109,6 +109,49 @@ pipeline and the labelled fixture set.
 
 ---
 
+## 4b. PDF coordinate mapping — verified against rendered pixels
+
+**Measured 2026-08-21 — 18/18 passing** (`tests/unit/test_pdf_extraction.py`).
+
+Asserting a rectangle "looks right" numerically is weak, because the numbers can
+be self-consistently wrong. So these tests render the page to a bitmap and
+measure what fraction of the page's **ink** falls inside the computed highlight.
+
+| Page rotation | Ink inside the computed highlight |
+|---|---|
+| 0° | > 85% |
+| 90° | > 85% |
+| 180° | > 85% |
+| 270° | > 85% |
+
+This empirically confirms the rotation transform (`page.rotation_matrix` applied
+before normalising against `page.rect`). Without it, highlights on rotated pages
+— which scanners produce constantly — land at 90° offsets. The bug is invisible
+in development and glaring to a user.
+
+### Text-layer coverage — a corrected assumption
+
+The design doc originally specified a native-text-layer gate of **"≥40% word-box
+coverage"**. Measured on A4:
+
+| Page content | Word-box coverage |
+|---|---|
+| Blank page | 0.000 |
+| One line of text | 0.012 |
+| Four lines | 0.025 |
+| Dense full page | **0.309** |
+
+A 40% gate would have routed **every real page** to OCR, including clean digital
+PDFs — burning cost and destroying citation quality for no reason. The threshold
+is now **0.005**, which still cleanly separates a blank/degenerate text layer
+(0.000) from a sparse but real one (0.012). Docs corrected in
+[10-architecture.md](10-architecture.md) §11.4 and [ARCHITECTURE.md](ARCHITECTURE.md) §4.
+
+*This is the kind of thing the "measure, don't assume" discipline is for: the
+number was plausible, cited in a design document, and wrong by ~50×.*
+
+---
+
 ## 5. Date normalization
 
 **Measured — 30/30 passing** (`tests/unit/test_date_normalization.py`).
