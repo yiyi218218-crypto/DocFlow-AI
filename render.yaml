@@ -81,13 +81,16 @@ services:
         value: "0.10"
       - key: FREE_TIER_DOCUMENTS_PER_MONTH
         value: "20"
+      # 4MB, not 10MB: uploads reach the API through Vercel's proxy, whose
+      # request-body cap is lower than ours. A circular is ~1-2MB.
       - key: MAX_UPLOAD_BYTES
-        value: "10485760"
+        value: "4194304"
       - key: MAX_PAGE_COUNT
         value: "30"
 
-      - key: CORS_ORIGINS
-        sync: false # the Vercel URL, set after the frontend deploys
+      # No CORS entry: the browser only ever talks to the Vercel origin, which
+      # proxies to this service. Same-origin keeps the refresh cookie working
+      # and the API free of ambient cross-site credentials.
 
 databases:
   - name: docflow-db

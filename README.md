@@ -41,7 +41,18 @@ metric, and the anti-hallucination defense — a fabricated fact cannot produce 
 quote that fuzzy-matches real page text at ≥ 95, so **citation verification rate
 doubles as a hallucination metric that needs no judge model and no labels**.
 
-## Run it
+## Live
+
+| | |
+|---|---|
+| App | https://docflow-ai-six.vercel.app |
+| API | https://docflow-api-r6wg.onrender.com/health |
+
+Free tier: the API spins down after ~15 minutes idle, so the first request can
+take 30–50s. Deployment details and the trade-offs behind it:
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Run it locally
 
 ```bash
 git clone https://github.com/A-K-M-Asifuzzaman/DocFlow-AI.git
