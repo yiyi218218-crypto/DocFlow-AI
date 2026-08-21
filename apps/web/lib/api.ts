@@ -198,3 +198,12 @@ export async function fetchBlobUrl(path: string): Promise<string> {
   }
   return URL.createObjectURL(await response.blob());
 }
+
+/** Exchange a verified Google ID token for a DocFlow session. */
+export async function loginWithGoogle(idToken: string): Promise<void> {
+  const body = await apiFetch<{ access_token: string }>('/api/v1/auth/google', {
+    method: 'POST',
+    body: { id_token: idToken },
+  });
+  setAccessToken(body.access_token);
+}

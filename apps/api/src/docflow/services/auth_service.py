@@ -88,6 +88,76 @@ async def register(
     return user, workspace
 
 
+async def upsert_google_user(
+    session: AsyncSession,
+    *,
+    subject: str,
+    email: str,
+    full_name: str | None,
+    picture: str | None,
+) -> tuple[User, Workspace]:
+    """Find or create the DocFlow user behind a verified Google identity.
+
+    Matching is by oauth subject first, then by email. The email fallback is
+    what lets someone who signed up with a password later use Google without
+    ending up with two accounts — and it is only safe because the caller has
+    already required a *verified* address.
+    """
+    user = await session.scalar(
+        select(User).where(User.oauth_provider == "google", User.oauth_subject == subject)
+    )
+
+    if user is None:
+        user = await session.scalar(select(User).where(User.email == email))
+        if user is not None:
+            # Existing password account: attach the identity rather than
+            # creating a duplicate.
+            user.oauth_provider = "google"
+            user.oauth_subject = subject
+            logger.info("auth.google_linked", user_id=str(user.id))
+
+    if user is None:
+        user = User(
+            email=email,
+            password_hash=None,  # Google-only account until they set one
+            full_name=full_name,
+            avatar_url=picture,
+            oauth_provider="google",
+            oauth_subject=subject,
+            email_verified_at=datetime.now(UTC),
+        )
+        session.add(user)
+        await session.flush()
+
+        workspace = Workspace(
+            name=_default_workspace_name(full_name, email),
+            slug=await _unique_slug(session, full_name or email.split("@")[0]),
+            owner_id=user.id,
+        )
+        session.add(workspace)
+        await session.flush()
+        session.add(
+            Membership(workspace_id=workspace.id, user_id=user.id, role=WorkspaceRole.OWNER)
+        )
+        await session.flush()
+        logger.info("auth.google_registered", user_id=str(user.id))
+        return user, workspace
+
+    # Keep the profile fresh, but never overwrite a name the user set here.
+    if picture:
+        user.avatar_url = picture
+    if full_name and not user.full_name:
+        user.full_name = full_name
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+    user.last_login_at = datetime.now(UTC)
+    user.failed_login_count = 0
+    user.locked_until = None
+
+    workspace, _role = await default_workspace(session, user)
+    return user, workspace
+
+
 async def authenticate(session: AsyncSession, *, email: str, password: str) -> User:
     user = await session.scalar(select(User).where(User.email == email))
 

@@ -2,8 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/app/providers';
-import { ApiError, getSession, login } from '@/lib/api';
+import { ApiError, getSession, login, loginWithGoogle } from '@/lib/api';
+import { clearFirebaseSession, googleSignInAvailable, signInWithGoogle } from '@/lib/firebase';
 
 const DEMO_EMAIL = 'demo@docflow.ai';
 const DEMO_PASSWORD = 'demo-workspace-2026';
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   async function signIn(withEmail: string, withPassword: string) {
     setBusy(true);
@@ -36,6 +39,33 @@ export default function LoginPage() {
     }
   }
 
+  async function continueWithGoogle() {
+    setGoogleBusy(true);
+    setError(null);
+    try {
+      const idToken = await signInWithGoogle();
+      await loginWithGoogle(idToken);
+      // Firebase's own session is not used once we hold a DocFlow token.
+      void clearFirebaseSession();
+      setSession(await getSession());
+      router.push('/documents');
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setGoogleBusy(false);
+        return; // The user changed their mind; that is not an error.
+      }
+      setError(
+        err instanceof ApiError
+          ? err.problem.detail
+          : 'Google sign-in did not complete. Try again, or use your email.',
+      );
+      setGoogleBusy(false);
+    }
+  }
+
+  const anyBusy = busy || googleBusy;
+
   return (
     <main id="main" className="grid min-h-dvh lg:grid-cols-2">
       <div className="flex items-center justify-center px-6 py-16">
@@ -45,8 +75,28 @@ export default function LoginPage() {
             Turn documents into deadlines, tasks and actions.
           </p>
 
+          {googleSignInAvailable && (
+            <>
+              <button
+                type="button"
+                onClick={() => void continueWithGoogle()}
+                disabled={anyBusy}
+                className="mt-7 flex h-10 w-full items-center justify-center gap-2.5 rounded-[--radius-inner] border border-line-strong bg-surface text-[13.5px] font-medium transition-all duration-200 hover:border-ink-4 hover:bg-raised active:scale-[0.99] disabled:opacity-50"
+              >
+                <GoogleMark />
+                {googleBusy ? 'Opening Google…' : 'Continue with Google'}
+              </button>
+
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-line" />
+                <span className="font-mono text-[11px] text-ink-4">or</span>
+                <span className="h-px flex-1 bg-line" />
+              </div>
+            </>
+          )}
+
           <form
-            className="mt-8 flex flex-col gap-3"
+            className={cn('flex flex-col gap-3', !googleSignInAvailable && 'mt-8')}
             onSubmit={(event) => {
               event.preventDefault();
               void signIn(email, password);
@@ -84,7 +134,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={busy}
+              disabled={anyBusy}
               className="mt-1 h-9 rounded-[--radius] bg-accent text-[13.5px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50"
             >
               {busy ? 'Signing in…' : 'Sign in'}
@@ -138,5 +188,28 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function GoogleMark() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 18 18" aria-hidden focusable="false">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58Z"
+      />
+    </svg>
   );
 }

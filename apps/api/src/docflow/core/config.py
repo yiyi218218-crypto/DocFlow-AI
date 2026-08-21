@@ -81,6 +81,11 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     gemini_api_key: SecretStr | None = None
 
+    # Firebase project id. NOT a secret: it is the ID token's audience and
+    # ships in the browser bundle. Verification uses Google's public keys,
+    # so no service account credential is needed or wanted here.
+    firebase_project_id: str | None = None
+
     llm_tier_fast: str = "openai:gpt-4.1-nano"
     llm_tier_balanced: str = "openai:gpt-4o-mini"
     llm_tier_deep: str = "openai:gpt-4.1-mini"

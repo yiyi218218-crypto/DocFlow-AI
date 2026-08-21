@@ -17,6 +17,7 @@ from docflow.core.config import settings
 from docflow.core.errors import Unauthenticated
 from docflow.core.permissions import permissions_for
 from docflow.schemas.auth import (
+    GoogleSignInIn,
     LoginIn,
     PasswordResetRequestIn,
     RegisterIn,
@@ -26,6 +27,7 @@ from docflow.schemas.auth import (
     WorkspaceOut,
 )
 from docflow.services import auth_service
+from docflow.services.google_auth import verify_id_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -141,6 +143,44 @@ async def logout(
     if docflow_refresh:
         await auth_service.revoke_session(session, docflow_refresh)
     _clear_refresh_cookie(response)
+
+
+@router.post("/google", response_model=TokenOut)
+async def google_sign_in(
+    payload: GoogleSignInIn,
+    request: Request,
+    response: Response,
+    session: PlainSession,
+) -> TokenOut:
+    """Exchange a verified Google ID token for a DocFlow session.
+
+    Firebase is only an identity provider: the token is verified against
+    Google's public keys and then discarded. Everything downstream — the
+    session, the workspace, the tenant context — is ours, so the security model
+    is unchanged whether someone signed in with a password or with Google.
+    """
+    identity = verify_id_token(payload.id_token)
+
+    user, workspace = await auth_service.upsert_google_user(
+        session,
+        subject=identity.subject,
+        email=identity.email,
+        full_name=identity.name,
+        picture=identity.picture,
+    )
+
+    access, refresh = await auth_service.issue_tokens(
+        session,
+        user,
+        workspace_id=workspace.id,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None,
+    )
+    _set_refresh_cookie(response, refresh)
+    return TokenOut(
+        access_token=access,
+        expires_in=settings.access_token_ttl_minutes * 60,
+    )
 
 
 @router.get("/me", response_model=SessionOut)

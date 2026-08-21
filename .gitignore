@@ -21,6 +21,10 @@ out/
 .pnpm-store/
 
 # Env & secrets
+# Service-account keys must never be committed, personal project or not.
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+firebase-adminsdk*.json
 .env
 .env.local
 .env.*.local

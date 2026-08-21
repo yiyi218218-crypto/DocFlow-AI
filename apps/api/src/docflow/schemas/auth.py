@@ -39,6 +39,16 @@ class LoginIn(BaseModel):
     password: str = Field(..., max_length=200)
 
 
+class GoogleSignInIn(BaseModel):
+    """A Firebase ID token from the browser.
+
+    Verified server-side against Google's public keys — the client is never
+    trusted to assert who it is.
+    """
+
+    id_token: str = Field(..., min_length=32, max_length=8192)
+
+
 class TokenOut(BaseModel):
     """The refresh token is NOT in this body.
 
