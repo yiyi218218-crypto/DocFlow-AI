@@ -246,7 +246,7 @@ def text_to_pdf(text: str, *, title: str = "Document") -> bytes:
         ),
     )
     rect = pymupdf.paper_rect("a4")
-    body = rect + (36, 36, -36, -36)
+    body = rect + (36, 36, -36, -36)  # noqa: RUF005 - pymupdf.Rect arithmetic, not a tuple
 
     more = True
     while more:

@@ -31,7 +31,6 @@ from docflow.ai.llm.base import (
 )
 from docflow.ai.llm.pricing import estimate_tokens
 from docflow.ai.normalization.bangla import detect_language
-from docflow.ai.normalization.dates import normalize_date
 
 _DOCUMENT_BLOCK = re.compile(r"<document[^>]*>(.*?)</document[^>]*>", re.DOTALL)
 _SENTENCE = re.compile(r"[^.।\n]+[.।]?")
@@ -178,19 +177,19 @@ class StubProvider:
 
             if date_match and any(cue in lowered for cue in _DEADLINE_CUES):
                 raw = date_match.group(0)
+                # Flat fields, matching the discriminated-union schema. Nesting
+                # them under "payload" fails validation — the payload column is a
+                # persistence detail, not part of the model's contract.
                 facts.append(
                     {
                         "kind": "deadline",
                         "source_quote": sentence,
                         "source_page": page,
                         "llm_confidence": 0.8,
-                        "payload": {
-                            "label": "Deadline",
-                            "raw_date_text": raw,
-                            "date_kind": "absolute",
-                            "is_primary": "submit" in lowered or "deadline" in lowered,
-                            "normalization_preview": normalize_date(raw).status.value,
-                        },
+                        "label": "Application deadline",
+                        "raw_date_text": raw,
+                        "date_kind": "absolute",
+                        "is_primary": "submit" in lowered or "deadline" in lowered,
                     }
                 )
             elif any(cue in lowered for cue in _REQUIREMENT_CUES):
@@ -200,11 +199,9 @@ class StubProvider:
                         "source_quote": sentence,
                         "source_page": page,
                         "llm_confidence": 0.7,
-                        "payload": {
-                            "requirement_type": "document",
-                            "description": sentence[:200],
-                            "is_mandatory": "must" in lowered or "required" in lowered,
-                        },
+                        "requirement_type": "document",
+                        "description": sentence[:200],
+                        "is_mandatory": "must" in lowered or "required" in lowered,
                     }
                 )
 
