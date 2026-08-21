@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -25,7 +25,7 @@ CONTENT_TYPE = "application/problem+json"
 class DocFlowError(Exception):
     """Base for every error we deliberately surface to a client."""
 
-    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    status_code: int = 500
     code: str = "INTERNAL_ERROR"
     title: str = "Internal server error"
 
@@ -63,25 +63,25 @@ class DocFlowError(Exception):
 
 
 class ValidationFailed(DocFlowError):
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = 422
     code = "VALIDATION_FAILED"
     title = "Request validation failed"
 
 
 class Unauthenticated(DocFlowError):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = 401
     code = "UNAUTHENTICATED"
     title = "Authentication required"
 
 
 class InvalidCredentials(DocFlowError):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = 401
     code = "INVALID_CREDENTIALS"
     title = "Invalid email or password"
 
 
 class TokenExpired(DocFlowError):
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = 401
     code = "TOKEN_EXPIRED"
     title = "Token has expired"
 
@@ -89,91 +89,91 @@ class TokenExpired(DocFlowError):
 class TokenReuseDetected(DocFlowError):
     """A refresh token was replayed — the whole family is revoked."""
 
-    status_code = status.HTTP_401_UNAUTHORIZED
+    status_code = 401
     code = "TOKEN_REUSE_DETECTED"
     title = "Session revoked for security reasons"
 
 
 class Forbidden(DocFlowError):
-    status_code = status.HTTP_403_FORBIDDEN
+    status_code = 403
     code = "FORBIDDEN"
     title = "You do not have permission to perform this action"
 
 
 class NotFound(DocFlowError):
-    status_code = status.HTTP_404_NOT_FOUND
+    status_code = 404
     code = "NOT_FOUND"
     title = "Resource not found"
 
 
 class EmailAlreadyRegistered(DocFlowError):
-    status_code = status.HTTP_409_CONFLICT
+    status_code = 409
     code = "EMAIL_ALREADY_REGISTERED"
     title = "That email is already registered"
 
 
 class DuplicateDocument(DocFlowError):
-    status_code = status.HTTP_409_CONFLICT
+    status_code = 409
     code = "DUPLICATE_DOCUMENT"
     title = "This document has already been uploaded"
 
 
 class IdempotencyKeyReuse(DocFlowError):
-    status_code = status.HTTP_409_CONFLICT
+    status_code = 409
     code = "IDEMPOTENCY_KEY_REUSE"
     title = "Idempotency key reused with a different request body"
 
 
 class QuotaExceeded(DocFlowError):
-    status_code = status.HTTP_402_PAYMENT_REQUIRED
+    status_code = 402
     code = "QUOTA_EXCEEDED"
     title = "Plan quota exceeded"
 
 
 class BudgetExceeded(DocFlowError):
-    status_code = status.HTTP_402_PAYMENT_REQUIRED
+    status_code = 402
     code = "BUDGET_EXCEEDED"
     title = "AI spending budget exceeded"
 
 
 class DocumentTooLarge(DocFlowError):
-    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    status_code = 413
     code = "DOCUMENT_TOO_LARGE"
     title = "Document exceeds the size limit"
 
 
 class InvalidFileType(DocFlowError):
-    status_code = status.HTTP_400_BAD_REQUEST
+    status_code = 400
     code = "INVALID_FILE_TYPE"
     title = "Unsupported file type"
 
 
 class CorruptDocument(DocFlowError):
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = 422
     code = "CORRUPT_DOCUMENT"
     title = "Document could not be read"
 
 
 class EncryptedDocument(DocFlowError):
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = 422
     code = "ENCRYPTED_DOCUMENT"
     title = "Document is password-protected"
 
 
 class TooManyPages(DocFlowError):
-    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    status_code = 413
     code = "TOO_MANY_PAGES"
     title = "Document has too many pages"
 
 
 class RateLimited(DocFlowError):
-    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    status_code = 429
     code = "RATE_LIMITED"
     title = "Too many requests"
 
 
 class ProviderUnavailable(DocFlowError):
-    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    status_code = 503
     code = "PROVIDER_UNAVAILABLE"
     title = "An upstream AI provider is unavailable"
 

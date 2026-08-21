@@ -93,6 +93,10 @@ ignore = [
 "src/docflow/ai/normalization/bangla.py" = ["RUF001", "RUF002", "RUF003"]
 # type_annotation_map is SQLAlchemy's documented API and is genuinely a dict.
 "src/docflow/core/database.py" = ["RUF012"]
+# ASYNC109: `timeout` is part of the provider protocol and is forwarded to the
+# vendor SDK, which enforces it properly. Wrapping in asyncio.timeout on top
+# would double-cancel and lose the SDK's own retry/telemetry behaviour.
+"src/docflow/ai/llm/*.py" = ["ASYNC109", "RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.12"
