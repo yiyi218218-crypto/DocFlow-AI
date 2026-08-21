@@ -3,7 +3,7 @@
 > **Turn documents into decisions, deadlines, tasks and actions** — with every fact traceable to the exact line it came from.
 
 [![CI](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-331%20passing-2F6B3D)](apps/api/tests)
+[![tests](https://img.shields.io/badge/tests-335%20passing-2F6B3D)](apps/api/tests)
 [![python](https://img.shields.io/badge/python-3.12-24466E)](apps/api/pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-4A5568)](LICENSE)
 
@@ -11,6 +11,11 @@
 
 *Click the deadline on the right; the source sentence highlights on the left. The card shows the
 normalized date, how long is left, **and** the raw text the document actually contained.*
+
+The same thing on a **Bangla** circular — which reached the model through OCR, because its PDF text
+layer was corrupt (see [EVALUATION.md](docs/EVALUATION.md) §7):
+
+![A Bangla circular with its deadline highlighted and normalized](docs/images/viewer-bangla.png)
 
 ---
 
@@ -45,8 +50,9 @@ doubles as a hallucination metric that needs no judge model and no labels**.
 
 | | |
 |---|---|
-| App | https://docflow-ai-six.vercel.app |
-| API | https://docflow-api-r6wg.onrender.com/health |
+| App | **https://docflow-ai-six.vercel.app** |
+| API | https://docflow-api-6a2w.onrender.com/health/ready |
+| Demo sign-in | `demo@docflow.ai` / `demo-workspace-2026` (or click **Open the demo**) |
 
 Free tier: the API spins down after ~15 minutes idle, so the first request can
 take 30–50s. Deployment details and the trade-offs behind it:
@@ -105,7 +111,9 @@ Real numbers from real runs. Full methodology and caveats:
 | Tenant isolation | **48/48** | Parameterised over every table carrying `WorkspaceScopedMixin` |
 | Authorization matrix | **99/99** | Every role × permission pair vs. a hand-written expected table |
 | Cross-lingual similarity, identical deadline EN↔BN | **0.297** (control 0.018) | Live `text-embedding-3-small` — **a measured weakness**, see below |
-| Modelled cost, 10-page document | **≈ $0.065** | Asserted in CI against published pricing |
+| **Real** cost per document | **$0.00088** | Live `gpt-4o-mini` extraction, from the usage ledger |
+| Bangla: text layer vs OCR | **69.4 → 97.1** similarity | The text layer is *worse* than OCR for Bengali |
+| RLS on the production database | **48/48** | Isolation suite run against live Neon |
 
 **Two design-document assumptions were measured and found wrong**, and are
 corrected in the docs:
@@ -181,8 +189,9 @@ normalized due dates returned over HTTP.
 | Document pipeline (11 stages) | ✅ resumable, idempotent, integration-tested |
 | Span alignment & citations | ✅ verified against rendered pixels |
 | LLM abstraction + usage ledger | ✅ 3 providers, cost per call recorded |
-| Auth, permissions, API | ✅ 331 backend tests |
-| Frontend + viewer | ✅ 5/5 Playwright E2E in Chromium |
+| Auth, permissions, API | ✅ 335 backend tests |
+| Frontend + viewer | ✅ 5/5 Playwright E2E, run against **production** |
+| Deployment | ✅ live and free — Vercel + Render + Neon |
 | Grounded chat / hybrid retrieval | 🚧 chunks + embeddings land; query path next |
 | Labeled eval dataset | ⬜ the blocking gap — see [EVALUATION.md](docs/EVALUATION.md) §6 |
 
