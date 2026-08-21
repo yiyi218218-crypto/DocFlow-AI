@@ -19,11 +19,22 @@
 
 import type { FirebaseApp } from 'firebase/app';
 
+/**
+ * Trim every value.
+ *
+ * `echo "$v" | vercel env add` stores the trailing newline as part of the
+ * value, and Next inlines it verbatim at build time. A newline inside
+ * authDomain makes the auth handler URL invalid and the popup throws a plain
+ * Error with no `code` — which surfaces as an unhelpful "unknown". Cheap to
+ * defend against, silent and slow to diagnose otherwise.
+ */
+const clean = (value: string | undefined): string | undefined => value?.trim() || undefined;
+
 const config = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: clean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+  authDomain: clean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+  projectId: clean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+  appId: clean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
 };
 
 export const googleSignInAvailable = Boolean(config.apiKey && config.projectId);
@@ -108,7 +119,11 @@ export async function signInWithGoogle(): Promise<string | null> {
     const credential = await signInWithPopup(auth, provider);
     return credential.user.getIdToken();
   } catch (error) {
-    const code = (error as { code?: string }).code ?? 'unknown';
+    // Fall back to the error's own name/message when there is no Firebase
+    // code, so a non-Firebase failure is still diagnosable rather than
+    // collapsing to "unknown".
+    const raw = error as { code?: string; name?: string; message?: string };
+    const code = raw.code ?? (raw.name ? `${raw.name}: ${raw.message ?? ''}`.trim() : 'unknown');
 
     if (REDIRECT_WORTHY.has(code)) {
       // The popup could not work here. Fall back to a redirect rather than
