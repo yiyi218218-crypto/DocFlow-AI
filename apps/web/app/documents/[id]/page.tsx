@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FactCard } from '@/components/facts/FactCard';
 import { apiFetch } from '@/lib/api';
 import { useViewerStore } from '@/lib/stores/viewer';
@@ -56,6 +56,11 @@ export default function DocumentPage() {
   const focusFact = useViewerStore((s) => s.focusFact);
   const activeFactId = useViewerStore((s) => s.activeHighlight?.factId);
 
+  // On a phone a 50/50 vertical split leaves ~330px for each pane, which is
+  // too little to read a page OR scan a fact list. Tabs give each one the full
+  // screen; the split only appears where there is room for it.
+  const [mobilePane, setMobilePane] = useState<'document' | 'insights'>('insights');
+
   const { data, isLoading } = useQuery({
     queryKey: ['documents', 'analysis', id],
     queryFn: () => apiFetch<DocumentAnalysis>(`/api/v1/documents/${id}/analysis`),
@@ -76,6 +81,11 @@ export default function DocumentPage() {
     const fact = facts.find((f) => f.id === factId);
     if (fact) {
       focusFact({ factId: fact.id, page: fact.source_page, rects: fact.source_rects });
+      // A ?fact= URL is a link *to a highlight*. Set the pane here rather than
+      // in a useState initializer: that runs before useSearchParams is
+      // populated, so it would lock to the list and hide the thing the link
+      // points at.
+      setMobilePane('document');
     }
   }, [searchParams, facts, activeFactId, focusFact]);
 
@@ -109,6 +119,10 @@ export default function DocumentPage() {
     return <FailedView analysis={data} />;
   }
 
+  function showSourceOnMobile() {
+    setMobilePane('document');
+  }
+
   const grouped = KIND_ORDER.map((kind) => ({
     kind,
     items: facts.filter((f) => f.kind === kind),
@@ -116,8 +130,8 @@ export default function DocumentPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 lg:px-5">
-        <Link href="/documents" className="rounded p-1 text-ink-3 transition-colors duration-200 hover:bg-raised hover:text-ink" aria-label="Back to documents">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3 sm:gap-3 sm:px-4 lg:px-5">
+        <Link href="/documents" className="-ml-1.5 flex size-9 shrink-0 items-center justify-center rounded-[--radius-inner] text-ink-3 transition-colors duration-200 hover:bg-raised hover:text-ink" aria-label="Back to documents">
           ←
         </Link>
         <p className="truncate text-[13.5px] font-medium">
@@ -148,12 +162,47 @@ export default function DocumentPage() {
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-rows-2 lg:grid-cols-[1fr_400px] lg:grid-rows-1">
-        <div className="min-h-0 border-b border-line lg:border-b-0 lg:border-r">
+      {/* Tab bar, phones only. */}
+      <div
+        role="tablist"
+        aria-label="Document view"
+        className="flex shrink-0 border-b border-line lg:hidden"
+      >
+        {(['insights', 'document'] as const).map((pane) => (
+          <button
+            key={pane}
+            role="tab"
+            type="button"
+            aria-selected={mobilePane === pane}
+            onClick={() => setMobilePane(pane)}
+            className={cn(
+              'min-h-[44px] flex-1 text-[13px] font-medium capitalize transition-colors duration-200',
+              mobilePane === pane
+                ? 'border-b-2 border-accent text-ink'
+                : 'border-b-2 border-transparent text-ink-3',
+            )}
+          >
+            {pane === 'insights' ? `Insights (${facts.length})` : 'Document'}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_min(400px,38%)]">
+        <div
+          className={cn(
+            'min-h-0 lg:block lg:border-r lg:border-line',
+            mobilePane === 'document' ? 'block' : 'hidden',
+          )}
+        >
           <PdfViewer fileUrl={`/api/v1/documents/${id}/file`} pages={pages} />
         </div>
 
-        <aside className="min-h-0 overflow-y-auto bg-bg">
+        <aside
+          className={cn(
+            'min-h-0 overflow-y-auto bg-bg lg:block',
+            mobilePane === 'insights' ? 'block' : 'hidden',
+          )}
+        >
           <div className="flex flex-col gap-6 p-4 lg:p-5">
             {document.summary && (
               <section>
@@ -174,7 +223,7 @@ export default function DocumentPage() {
                 </h2>
                 <div className="mt-2 flex flex-col gap-1">
                   {items.map((fact) => (
-                    <FactCard key={fact.id} fact={fact} />
+                    <FactCard key={fact.id} fact={fact} onNavigate={showSourceOnMobile} />
                   ))}
                 </div>
               </section>

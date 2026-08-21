@@ -46,7 +46,7 @@ export function DeadlineRail({ deadlines }: { deadlines: UpcomingDeadline[] }) {
           <li key={d.fact_id} className="rise" style={{ animationDelay: `${i * 45}ms` }}>
             <Link
               href={`/documents/${d.document_id}?fact=${d.fact_id}&page=${d.source_page}`}
-              className="group relative flex gap-3 rounded-[--radius-inner] py-2.5 pl-6 pr-3 transition-colors duration-200 hover:bg-raised"
+              className="group relative flex min-h-[52px] gap-3 rounded-[--radius-inner] py-2.5 pl-6 pr-2 transition-colors duration-200 hover:bg-raised sm:pr-3"
             >
               <span
                 aria-hidden

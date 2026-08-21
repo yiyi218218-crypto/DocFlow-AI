@@ -22,7 +22,7 @@ const CONFIDENCE_STYLES = {
   low: { dot: 'bg-ink-4', label: 'Low confidence' },
 } as const;
 
-export function FactCard({ fact }: { fact: Fact }) {
+export function FactCard({ fact, onNavigate }: { fact: Fact; onNavigate?: () => void }) {
   const focusFact = useViewerStore((s) => s.focusFact);
   const activeId = useViewerStore((s) => s.activeHighlight?.factId);
 
@@ -39,6 +39,9 @@ export function FactCard({ fact }: { fact: Fact }) {
       page: fact.source_page,
       rects: canHighlight ? fact.source_rects : [],
     });
+    // On a phone the document is behind a tab, so a tap that "goes to the
+    // source" has to actually show the source.
+    onNavigate?.();
   }
 
   return (

@@ -31,11 +31,16 @@ interface PdfViewerProps {
   pages: DocumentPage[];
 }
 
-const BASE_WIDTH = 820; // CSS px at zoom 1
+// Widest a page is ever drawn. Below this the page fits the container, so a
+// phone shows the whole width instead of ~45% of it — the single biggest
+// mobile defect in the viewer.
+const MAX_PAGE_WIDTH = 820;
+const GUTTER = 24;
 
 export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [baseWidth, setBaseWidth] = useState(MAX_PAGE_WIDTH);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const zoom = useViewerStore((s) => s.zoom);
@@ -119,6 +124,20 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
     });
   }, [activeHighlight, scrollNonce]);
 
+  // Fit pages to the container, remeasuring on rotate and resize.
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const measure = () =>
+      setBaseWidth(Math.max(240, Math.min(MAX_PAGE_WIDTH, node.clientWidth - GUTTER * 2)));
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   const onPageVisible = useCallback(
     (pageNumber: number) => setCurrentPage(pageNumber),
     [setCurrentPage],
@@ -134,14 +153,15 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
   }
 
   return (
-    <div ref={containerRef} className="relative h-full overflow-y-auto bg-sunken px-6 py-8">
-      <div className="mx-auto flex flex-col items-center gap-5">
+    <div ref={containerRef} className="relative h-full overflow-y-auto bg-sunken px-4 py-6 sm:px-6 sm:py-8">
+      <div className="mx-auto flex flex-col items-center gap-4 sm:gap-5">
         {pages.map((page) => (
           <PageCanvas
             key={page.page_number}
             pdf={pdf}
             page={page}
             zoom={zoom}
+            baseWidth={baseWidth}
             highlight={
               activeHighlight?.page === page.page_number ? activeHighlight.rects : null
             }
@@ -158,12 +178,21 @@ interface PageCanvasProps {
   pdf: PDFDocumentProxy | null;
   page: DocumentPage;
   zoom: number;
+  baseWidth: number;
   highlight: Rect[] | null;
   highlightKey: number;
   onVisible: (pageNumber: number) => void;
 }
 
-function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: PageCanvasProps) {
+function PageCanvas({
+  pdf,
+  page,
+  zoom,
+  baseWidth,
+  highlight,
+  highlightKey,
+  onVisible,
+}: PageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState(false);
@@ -173,9 +202,9 @@ function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: Pag
   // so the scrollbar is correct immediately and nothing jumps.
   const { width, height } = useMemo(() => {
     const aspect = page.height > 0 ? page.height / page.width : 1.414;
-    const w = BASE_WIDTH * zoom;
+    const w = baseWidth * zoom;
     return { width: w, height: w * aspect };
-  }, [page.width, page.height, zoom]);
+  }, [page.width, page.height, zoom, baseWidth]);
 
   useEffect(() => {
     const node = wrapperRef.current;
@@ -203,7 +232,7 @@ function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: Pag
     (async () => {
       const pdfPage = await pdf.getPage(page.page_number);
       const unscaled = pdfPage.getViewport({ scale: 1 });
-      const scale = (BASE_WIDTH * zoom) / unscaled.width;
+      const scale = (baseWidth * zoom) / unscaled.width;
       const viewport = pdfPage.getViewport({ scale });
 
       const canvas = canvasRef.current;
@@ -229,7 +258,7 @@ function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: Pag
     return () => {
       cancelled = true;
     };
-  }, [pdf, inView, page.page_number, zoom]);
+  }, [pdf, inView, page.page_number, zoom, baseWidth]);
 
   return (
     <div

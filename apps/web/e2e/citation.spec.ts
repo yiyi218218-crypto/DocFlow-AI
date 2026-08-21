@@ -28,7 +28,10 @@ test('sign in and list the seeded documents', async ({ page }) => {
   await expect(page.locator('[data-filename="du-admission-circular-2026.pdf"]')).toBeVisible();
 });
 
-test('clicking a deadline highlights its source span on the correct page', async ({ page }) => {
+test('clicking a deadline highlights its source span on the correct page', async ({
+  page,
+  isMobile,
+}) => {
   await signIn(page);
 
   await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
@@ -59,11 +62,25 @@ test('clicking a deadline highlights its source span on the correct page', async
   await expect(page).toHaveURL(/[?&]fact=[0-9a-f-]{36}/);
   await expect(page).toHaveURL(/[?&]page=1/);
 
-  // The card is visibly linked to what it highlighted.
-  await expect(deadlineCard).toHaveAttribute('aria-current', 'true');
+  // The card is visibly linked to what it highlighted. On a phone the list is
+  // behind a tab once the document shows, so go back the way a user would —
+  // getByRole deliberately ignores anything hidden from the a11y tree.
+  if (isMobile) {
+    await expect(page.getByRole('tab', { name: /document/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.getByRole('tab', { name: /insights/i }).click();
+  }
+  await expect(page.getByRole('button', { name: /15 Sept 2026/ }).first()).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
 });
 
 test('the highlight survives a page reload', async ({ page }) => {
+  // Also covers the mobile case: a ?fact= link must reopen on the document,
+  // not on the list that hides it.
   await signIn(page);
   await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   // Wait for the route to settle before clicking: a click issued mid-navigation
@@ -102,4 +119,44 @@ test('citation verification rate is reported', async ({ page }) => {
   await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
   await expect(page.getByText(/% citations verified/)).toBeVisible();
+});
+
+test('the source is reachable on a phone', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'covers the tabbed mobile layout only');
+
+  await signIn(page);
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
+  await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
+
+  // A phone shows tabs, not a split: 50/50 leaves ~330px for each pane, which
+  // is too little to read a page or scan a list.
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await expect(page.getByRole('tab', { name: /insights/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+
+  // Tapping a fact must actually reveal the source, not just highlight a pane
+  // the user cannot see.
+  await page.getByRole('button', { name: /15 Sept 2026/ }).first().click();
+  await expect(page.getByRole('tab', { name: /document/i })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(page.getByTestId('citation-highlight').first()).toBeVisible({ timeout: 20_000 });
+
+  // The page fits the screen; nothing scrolls sideways.
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+
+  const pageWidth = await page
+    .locator('[data-page]')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().width);
+  const viewport = page.viewportSize()!.width;
+  expect(pageWidth).toBeGreaterThan(viewport * 0.8);
+  expect(pageWidth).toBeLessThanOrEqual(viewport);
 });

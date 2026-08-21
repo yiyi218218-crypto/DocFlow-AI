@@ -73,10 +73,10 @@ export default function DashboardPage() {
   const firstName = session?.user.full_name?.split(' ')[0];
 
   return (
-    <main id="main" className="mx-auto max-w-[1180px] px-5 py-9 lg:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main id="main" className="mx-auto max-w-[1180px] px-4 py-7 sm:px-5 sm:py-9 lg:px-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[22px] font-semibold tracking-[-0.02em]">
+          <h1 className="text-[20px] font-semibold tracking-[-0.02em] sm:text-[22px]">
             {firstName ? `Welcome back, ${firstName}` : 'Your workspace'}
           </h1>
           <p className="mt-1 max-w-[52ch] text-[13.5px] text-ink-2">
@@ -99,7 +99,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={upload.isPending}
-          className="h-9 rounded-[--radius-inner] bg-accent px-4 text-[13px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50"
+          className="min-h-[44px] w-full rounded-[--radius-inner] bg-accent px-4 text-[13px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 sm:h-9 sm:min-h-0 sm:w-auto"
         >
           {upload.isPending ? 'Uploading…' : 'Upload a document'}
         </button>
@@ -116,7 +116,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      <div className="mt-8 grid gap-x-10 gap-y-9 lg:grid-cols-8">
+      <div className="mt-8 grid gap-x-10 gap-y-8 lg:grid-cols-8">
         {/* Deadlines get the wide column: they are the product. */}
         <section className="lg:col-span-5">
           <SectionHead
@@ -183,9 +183,9 @@ function StatStrip({ dash, loading }: { dash?: Dashboard; loading: boolean }) {
   ];
 
   return (
-    <dl className="mt-7 grid grid-cols-2 gap-y-6 border-y border-line py-5 sm:grid-cols-4 sm:divide-x sm:divide-line">
+    <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-y border-line py-5 sm:mt-7 sm:grid-cols-4 sm:gap-x-0 sm:divide-x sm:divide-line">
       {items.map((it, i) => (
-        <div key={it.label} className={cn('px-0 sm:px-5', i === 0 && 'sm:pl-0')}>
+        <div key={it.label} className={cn('sm:px-5', i === 0 && 'sm:pl-0')}>
           <dt className="eyebrow">{it.label}</dt>
           <dd
             className={cn(
@@ -290,7 +290,7 @@ function TaskList({ dash }: { dash?: Dashboard }) {
             {t.document_id ? (
               <Link
                 href={`/documents/${t.document_id}`}
-                className="group flex gap-2.5 rounded-[--radius-inner] px-2 py-2 transition-colors duration-200 hover:bg-raised"
+                className="group flex min-h-[44px] gap-2.5 rounded-[--radius-inner] px-2 py-2.5 transition-colors duration-200 hover:bg-raised"
               >
                 {body}
               </Link>
@@ -317,7 +317,7 @@ function DocumentRow({ document, index }: { document: DocumentSummary; index: nu
         href={`/documents/${document.id}`}
         data-testid="document-row"
         data-filename={document.original_filename}
-        className="group flex items-center gap-4 px-2 py-3 transition-colors duration-200 hover:bg-raised"
+        className="group flex min-h-[56px] items-center gap-3 px-2 py-3 transition-colors duration-200 hover:bg-raised sm:gap-4"
       >
         <span
           aria-hidden
@@ -391,7 +391,7 @@ function Dropzone({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       className={cn(
-        'mt-1 flex w-full flex-col items-center rounded-[--radius-card] border border-dashed px-6 py-14 text-center transition-all duration-200',
+        'mt-1 flex w-full flex-col items-center rounded-[--radius-card] border border-dashed px-5 py-12 text-center transition-all duration-200 sm:px-6 sm:py-14',
         dragging
           ? 'border-accent bg-accent-wash'
           : 'border-line-strong hover:border-accent hover:bg-raised',

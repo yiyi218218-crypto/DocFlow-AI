@@ -68,7 +68,7 @@ export default function LoginPage() {
 
   return (
     <main id="main" className="grid min-h-dvh lg:grid-cols-2">
-      <div className="flex items-center justify-center px-6 py-16">
+      <div className="flex items-center justify-center px-5 py-12 sm:px-6 sm:py-16">
         <div className="w-full max-w-sm">
           <h1 className="text-[21px] font-semibold tracking-[-0.02em]">Sign in to DocFlow</h1>
           <p className="mt-1.5 text-[13.5px] text-ink-2">
@@ -110,7 +110,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-9 rounded-[--radius] border border-line bg-surface px-3 text-[13.5px] outline-none transition-colors duration-200 focus:border-accent"
+                className="h-11 rounded-[--radius-inner] border border-line bg-surface px-3 text-[16px] outline-none transition-colors duration-200 focus:border-accent sm:h-9 sm:text-[13.5px]"
               />
             </label>
 
@@ -122,7 +122,7 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-9 rounded-[--radius] border border-line bg-surface px-3 text-[13.5px] outline-none transition-colors duration-200 focus:border-accent"
+                className="h-11 rounded-[--radius-inner] border border-line bg-surface px-3 text-[16px] outline-none transition-colors duration-200 focus:border-accent sm:h-9 sm:text-[13.5px]"
               />
             </label>
 
@@ -135,7 +135,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={anyBusy}
-              className="mt-1 h-9 rounded-[--radius] bg-accent text-[13.5px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50"
+              className="mt-1 h-11 rounded-[--radius-inner] bg-accent text-[14px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50 sm:h-10"
             >
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
@@ -150,7 +150,7 @@ export default function LoginPage() {
               type="button"
               disabled={busy}
               onClick={() => void signIn(DEMO_EMAIL, DEMO_PASSWORD)}
-              className="mt-2.5 h-8 w-full rounded-[--radius-inner] border border-line-strong bg-surface text-[12.5px] font-medium transition-all duration-200 hover:border-accent hover:text-accent active:scale-[0.99] disabled:opacity-50"
+              className="mt-2.5 h-10 w-full rounded-[--radius-inner] border border-line-strong bg-surface text-[13px] font-medium transition-all duration-200 hover:border-accent hover:text-accent active:scale-[0.99] disabled:opacity-50 sm:h-9"
             >
               Open the demo
             </button>
