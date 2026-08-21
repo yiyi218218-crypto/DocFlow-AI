@@ -344,7 +344,11 @@ async def run_extracting(ctx: StageContext) -> dict[str, Any]:
     doc.reference_number = result.reference_number
     doc.published_date = result.published_date
     doc.document_type = result.document_type
-    if result.language != Language.UNKNOWN:
+    # Language is decided by counting codepoints, not by asking the model.
+    # Observed: gpt-4o-mini labelled two plainly English circulars as `bn`.
+    # detect_language() cannot be wrong about which script the text is in, so
+    # the model's guess is only a fallback when the page has no text to count.
+    if doc.language is Language.UNKNOWN and result.language != Language.UNKNOWN:
         doc.language = result.language
     doc.security_flags = result.security_flags
     doc.total_cost_usd = float(doc.total_cost_usd or 0) + result.total_cost_usd

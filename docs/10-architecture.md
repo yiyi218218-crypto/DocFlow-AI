@@ -180,11 +180,19 @@ The worker's job body is: *"advance document D to completion."* On each invocati
 
 ### 11.4 OCR: the tiered strategy
 
+> **Measured correction (2026-08-21).** For Bengali the native text layer can be
+> *worse* than OCR: ligature shaping without a ToUnicode mapping yields
+> plausible-looking text that scores 63–70 on alignment (every citation
+> UNVERIFIED) while OCR of the same page scores 100. Tier 1 therefore also
+> checks for **script corruption**, not just absence of text.
+> See [EVALUATION.md](EVALUATION.md) §7.
+
 ```
 For each page:
   1. Native text layer (PyMuPDF).
      Accept if: chars ≥ 120  AND  word-box coverage ≥ 0.5% of page area
                 AND garbage-char ratio < 0.15
+                AND script-corruption ratio < 0.05   ← MEASURED, see §7
      (0.5%, not 40% as an earlier draft said — MEASURED word-box coverage on A4:
       blank 0.000 | one line 0.012 | four lines 0.025 | dense full page 0.309.
       A 40% gate would route every real page to OCR.)
@@ -203,7 +211,7 @@ For each page:
 
 | Engine | Bangla | Word boxes | Cost | Verdict |
 |---|---|---|---|---|
-| **Tesseract 5 + `ben`** | Mediocre but real | ✅ TSV | Free, CPU | ✅ **Default tier 2.** Ships in the image, no GPU, boxes for free. |
+| **Tesseract 5 + `ben`** | **Measured 100/line on rendered Bengali** | ✅ TSV | Free, CPU | ✅ **Default tier 2**, and tier 1 for Bengali pages with a corrupt text layer. |
 | PaddleOCR | Better on many scripts | ✅ polygons | Free, wants GPU | ⚠️ Heavy install, painful on ARM Mac. Benchmark in Ph.3. |
 | Surya | Strong multilingual | ✅ | Free, needs GPU | ⚠️ Best open option *if* you get a GPU. Ph.3. |
 | Google Document AI / Azure DI | Strong | ✅ | ~$1.50/1k pages | ✅ **Tier 3a.** Pay only on the ~10% that fail the gate. |

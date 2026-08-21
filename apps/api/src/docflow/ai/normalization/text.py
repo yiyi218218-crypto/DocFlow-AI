@@ -141,3 +141,62 @@ def garbage_ratio(text: str) -> float:
         if ch == "�" or (unicodedata.category(ch) in ("Cc", "Co", "Cn") and ch not in "\n\r\t")
     )
     return bad / len(text)
+
+
+# Codepoint ranges that legitimately appear in the documents we target.
+# Anything else showing up *inside* Bengali text is a broken ToUnicode mapping,
+# not content.
+def _is_expected_letter(ch: str) -> bool:
+    return (
+        ("\u0980" <= ch <= "\u09ff")  # Bengali
+        or ("a" <= ch <= "z")
+        or ("A" <= ch <= "Z")
+    )
+
+
+def script_corruption_ratio(text: str) -> float:
+    """Fraction of letters that look like a broken text layer rather than content.
+
+    Measured problem: Bengali PDFs shape conjuncts into ligature glyphs, and when
+    the font's ToUnicode CMap does not map them back, extraction emits Latin-1,
+    Greek and Latin-Extended substitutes *inside* otherwise-Bengali words —
+    e.g. `শিáা½থদের অবশɹই একাডেমিক ȵাĵ`.
+
+    The text looks plausible and is unusable: measured per-line alignment against
+    the true source was 63-70, i.e. every citation would be UNVERIFIED, while
+    OCR of the same rendered page scored 100. So this is what decides whether a
+    page goes to OCR *despite having a text layer*.
+
+    Returns 0.0 for text with no meaningful Bengali content, so English
+    documents and code-switched text are unaffected.
+    """
+    letters = [ch for ch in text if ch.isalpha()]
+    if len(letters) < 10:
+        return 0.0
+
+    bengali = sum(1 for ch in letters if "\u0980" <= ch <= "\u09ff")
+    if bengali / len(letters) < 0.15:
+        return 0.0  # not a Bengali page; this detector has nothing to say
+
+    unexpected = sum(1 for ch in letters if not _is_expected_letter(ch))
+    return unexpected / len(letters)
+
+
+_MISSING_GLYPH_RUN = __import__("re").compile(r"\?{3,}")
+
+
+def missing_glyph_ratio(text: str) -> float:
+    """Fraction of characters that are missing-glyph substitutions.
+
+    When a PDF producer has no glyph for a codepoint it emits `?` (or a notdef
+    box). One `?` is punctuation; a run of them is a rendering failure, and the
+    text layer is worthless even though it looks like text.
+
+    Seen for real: a Bangla notice rendered with Helvetica extracted as
+    `???? ?????????????? / ??????????? ?????`, which passed every length and
+    coverage check and produced zero extracted facts.
+    """
+    if not text:
+        return 0.0
+    in_runs = sum(len(m.group(0)) for m in _MISSING_GLYPH_RUN.finditer(text))
+    return in_runs / len(text)

@@ -9,6 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from docflow.ai.llm import client as llm_client
 from docflow.core.config import settings
 from docflow.core.database import set_tenant_context
 
@@ -23,6 +24,22 @@ from docflow.core.database import set_tenant_context
 # the event loop that created them, and pytest-asyncio gives each test a fresh
 # loop — a session-scoped engine therefore hands out connections attached to a
 # dead loop. Per-test engines are marginally slower and completely reliable.
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _force_stub_provider() -> None:
+    """Never let the test suite call a real provider.
+
+    Once OPENAI_API_KEY is present in the environment, demo mode switches off
+    and every extraction test starts making live billed calls — slow,
+    non-deterministic, and quietly spending money on every `pytest` run.
+    (Observed: the suite went from 9s to 146s the moment real routing landed.)
+
+    Model quality belongs in the eval suite, where it is measured deliberately.
+    Everything here tests plumbing, so it runs on the stub.
+    """
+    settings.demo_mode = True
+    llm_client.reset_providers()
 
 
 @pytest.fixture(scope="session")

@@ -18,7 +18,6 @@ import asyncio
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import pymupdf
 from sqlalchemy import select
 
 from docflow.core import storage
@@ -26,6 +25,7 @@ from docflow.core.config import settings
 from docflow.core.database import system_session, tenant_session
 from docflow.core.logging import configure_logging, get_logger
 from docflow.core.security import hash_password
+from docflow.documents.pdf import text_to_pdf
 from docflow.models.document import Document, DocumentFact
 from docflow.models.enums import (
     DocumentStatus,
@@ -103,6 +103,24 @@ Contact the scholarship cell at scholarship@moedu.gov.bd for assistance.
 """,
     ),
     (
+        "ঢাবি-ভর্তি-বিজ্ঞপ্তি-২০২৬.pdf",
+        """ঢাকা বিশ্ববিদ্যালয়
+রেজিস্ট্রার দপ্তর
+
+ভর্তি বিজ্ঞপ্তি ২০২৬-২০২৭
+প্রকাশের তারিখ ১ আগস্ট ২০২৬
+
+আবেদনের শেষ তারিখ ১৫ সেপ্টেম্বর ২০২৬।
+
+প্রয়োজনীয় কাগজপত্র
+শিক্ষার্থীদের অবশ্যই একাডেমিক ট্রান্সক্রিপ্ট জমা দিতে হবে।
+জাতীয় পরিচয়পত্রের ফটোকপি প্রয়োজন।
+দুই কপি পাসপোর্ট সাইজ ছবি জমা দিতে হবে।
+
+নির্ধারিত সময়ের পরে কোনো আবেদন গ্রহণ করা হবে না।
+""",
+    ),
+    (
         "internship-notice-cse.pdf",
         """Department of Computer Science and Engineering
 
@@ -133,13 +151,12 @@ def build_pdf(body: str) -> bytes:
 
     Injecting rows directly would skip parsing, alignment and confidence — the
     parts most likely to break — and the demo would prove nothing.
+
+    Uses text_to_pdf so the embedded Bengali face is applied. Rendering with the
+    default Helvetica silently produced `???? ??????????????` and the Bangla
+    sample extracted zero facts.
     """
-    doc = pymupdf.open()
-    page = doc.new_page(width=595, height=842)
-    page.insert_textbox(pymupdf.Rect(50, 55, 545, 790), body, fontsize=10.5, lineheight=1.35)
-    data = doc.tobytes()
-    doc.close()
-    return data
+    return text_to_pdf(body)
 
 
 async def ensure_demo_account() -> tuple[uuid.UUID, uuid.UUID]:

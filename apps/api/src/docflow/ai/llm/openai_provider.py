@@ -23,6 +23,87 @@ from docflow.ai.llm.base import (
 )
 from docflow.ai.llm.pricing import compute_cost
 
+# OpenAI's strict mode accepts a narrower JSON Schema dialect than Anthropic's:
+# every property must appear in `required`, and most validation keywords are
+# rejected outright. Optionality is expressed by making the type nullable rather
+# than by omitting the key.
+#
+# This is exactly the kind of provider difference the abstraction exists to
+# absorb — the shared ToolSchema stays provider-neutral and each adapter speaks
+# its own dialect.
+_STRICT_UNSUPPORTED = frozenset(
+    {
+        "default",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "format",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "examples",
+        # Pydantic emits `discriminator` alongside a union; strict mode rejects it.
+        "discriminator",
+    }
+)
+
+
+def to_strict_schema(node: Any) -> Any:
+    """Rewrite a JSON Schema into OpenAI's strict dialect."""
+    if isinstance(node, list):
+        return [to_strict_schema(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+
+    cleaned = {k: to_strict_schema(v) for k, v in node.items() if k not in _STRICT_UNSUPPORTED}
+
+    # Pydantic emits `oneOf` for a discriminated union; strict mode only accepts
+    # `anyOf`. They are equivalent here because the branches are disjoint by
+    # construction — the discriminator guarantees exactly one matches.
+    if "oneOf" in cleaned:
+        cleaned["anyOf"] = cleaned.pop("oneOf")
+
+    if cleaned.get("type") == "object" and isinstance(cleaned.get("properties"), dict):
+        properties: dict[str, Any] = cleaned["properties"]
+        previously_required = set(cleaned.get("required", []))
+
+        for name, subschema in properties.items():
+            if name not in previously_required:
+                properties[name] = _make_nullable(subschema)
+
+        # Strict mode requires every key present in `required`.
+        cleaned["required"] = list(properties.keys())
+        cleaned["additionalProperties"] = False
+
+    return cleaned
+
+
+def _make_nullable(subschema: Any) -> Any:
+    """Express "optional" as "may be null", which is how strict mode models it."""
+    if not isinstance(subschema, dict):
+        return subschema
+
+    if "anyOf" in subschema:
+        branches = subschema["anyOf"]
+        if not any(isinstance(b, dict) and b.get("type") == "null" for b in branches):
+            subschema["anyOf"] = [*branches, {"type": "null"}]
+        return subschema
+
+    node_type = subschema.get("type")
+    if isinstance(node_type, str) and node_type != "null":
+        subschema["type"] = [node_type, "null"]
+    elif isinstance(node_type, list) and "null" not in node_type:
+        subschema["type"] = [*node_type, "null"]
+    elif node_type is None and "$ref" in subschema:
+        # A $ref cannot carry a type, so wrap it.
+        return {"anyOf": [subschema, {"type": "null"}]}
+    return subschema
+
 
 class OpenAIProvider:
     name = "openai"
@@ -60,7 +141,9 @@ class OpenAIProvider:
                     "function": {
                         "name": tool.name,
                         "description": tool.description,
-                        "parameters": tool.json_schema,
+                        "parameters": (
+                            to_strict_schema(tool.json_schema) if tool.strict else tool.json_schema
+                        ),
                         "strict": tool.strict,
                     },
                 }

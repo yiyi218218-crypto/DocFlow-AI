@@ -202,7 +202,120 @@ from real documents.
 
 ---
 
-## 6. Not yet measured
+## 6. Model selection — quality vs. cost, measured
+
+**Measured 2026-08-21.** 3 documents, all tiers pointed at one model, live API.
+`uv run python -m docflow.eval.model_bench`
+
+The question that decides the model here is not general capability but **quote
+fidelity**: a model that paraphrases its `source_quote` fails span alignment,
+which demotes the fact, which removes the highlight. No public benchmark
+measures that, so this one does.
+
+| model | facts | citation verification | deadlines ✓ | cost (3 docs) |
+|---|---|---|---|---|
+| `gpt-4.1-nano` | 12 | **100%** | 2/3 | **$0.00205** |
+| `gpt-4o-mini` | 8 | **100%** | 2/3 | $0.00207 |
+| `gpt-4.1-mini` | 9 | **100%** | 2/3 | $0.00417 |
+| `gpt-5-nano` | 0 | **0%** | 0/3 | $0.01131 |
+
+**`gpt-5-nano` failed outright** — schema invalid even after the repair
+round-trip on all three documents, while costing **5× more than the models that
+worked**. It is a reasoning model: on a trivial extraction it emitted 433 output
+tokens where `gpt-4o-mini` used 26, and it still got `raw_date_text` wrong
+(returning the whole sentence). More expensive *and* worse is a useful result.
+
+`gpt-4.1-nano` was independently observed corrupting a quote in a smoke test
+("must be **be** submitted"). Fuzzy alignment absorbed it here, but the fidelity
+margin is thinner than `gpt-4o-mini`'s exact reproduction — which is why
+extraction runs on `gpt-4o-mini` and only the cheap mechanical tiers use nano.
+
+**Chosen routing:** FAST `gpt-4.1-nano` · BALANCED `gpt-4o-mini` · DEEP
+`gpt-4.1-mini`. Measured cost ≈ **$0.0007 per short document**.
+
+*Caveat:* 3 documents. This is model selection, not the labelled evaluation set.
+The 2/3 deadline score was a broken fixture, not a model failure — see §7.
+
+---
+
+## 7. Bangla — the wedge assumption, tested
+
+> This is the week-1 spike [60-delivery.md](60-delivery.md) §30.3 said to run
+> before anything else. It was run, and it inverted a core design assumption.
+
+**Measured 2026-08-21.** Bengali notice → PDF → text layer vs. Tesseract `ben`.
+
+| Source line | PDF text layer | Tesseract `ben` |
+|---|---|---|
+| ঢাকা বিশ্ববিদ্যালয় | 68.4 | **100.0** |
+| আবেদনের শেষ তারিখ ১৫ সেপ্টেম্বর ২০২৬। | 70.3 | **100.0** |
+| শিক্ষার্থীদের অবশ্যই একাডেমিক ট্রান্সক্রিপ্ট | 63.8 | **100.0** |
+| জাতীয় পরিচয়পত্রের ফটোকপি প্রয়োজন। | 69.4 | **100.0** |
+| **whole document** | **69.4** | **97.1** |
+
+OCR mean word confidence **92.0**, with word boxes intact.
+
+### Finding 1 — Tesseract `ben` is good, not "mediocre"
+
+The blueprint rated Bengali OCR "mediocre but real" and treated it as the
+project's biggest risk. On clean rendered Bengali it scores **100 per line**.
+**The wedge is viable.**
+
+### Finding 2 — for Bengali, the text layer is WORSE than OCR
+
+This was not anticipated. Bengali conjuncts shape into ligature glyphs, and when
+a font's ToUnicode CMap does not map them back, extraction emits Latin-1, Greek
+and Latin-Extended substitutes *inside* otherwise-Bengali words:
+
+```
+source:    শিক্ষার্থীদের অবশ্যই একাডেমিক ট্রান্সক্রিপ্ট জমা দিতে হবে।
+extracted: শিáা½থদের অবশɹই একাডেমিক ȵাĵ Úি Ƌ জম দিতে হবে।
+```
+
+The page passes every existing check — 201 characters, normal coverage, zero
+"garbage" by the control-character definition — and every citation on it is
+**UNVERIFIED**. A silent, total failure of the product's differentiator on its
+primary language. PyMuPDF extraction flags do not fix it (70.3 → 73.0 at best).
+
+**Architectural consequence.** "Prefer the native text layer, fall back to OCR"
+is backwards for Bengali. The gate now detects *script corruption* — letters
+outside the expected scripts appearing inside Bengali text — and routes such
+pages to OCR **despite having a text layer**
+(`ai/normalization/text.py::script_corruption_ratio`, threshold 0.05).
+
+| Sample | corruption | routed to |
+|---|---|---|
+| Clean Bengali | 0.000 | native |
+| **Mangled Bengali** | **0.186** | **OCR** |
+| Clean English | 0.000 | native |
+| Code-switched bn/en | 0.000 | native |
+
+### End to end, on a Bangla circular
+
+Full pipeline, real Postgres + MinIO + Tesseract:
+
+| | |
+|---|---|
+| Text layer | detected corrupt → OCR |
+| OCR confidence | 92.8 |
+| Facts extracted | 3 |
+| **Citation verification** | **3/3 verified** (scores 95, 100, 100) |
+| Deadline | `১৫ সেপ্টেম্বর ২০২৬` → **2026-09-15** |
+| Highlight rectangles | present on all three |
+
+Also fixed here: `text_to_pdf` rendered Bangla as `?????` because no bundled
+face covered the Bengali block. Noto Sans Bengali (OFL) is now embedded rather
+than assumed, so behaviour is identical on macOS, the Debian image and CI.
+
+*Caveats.* This is **rendered** Bengali, not a photographed or low-quality scan.
+Real scanned government circulars will score lower, and that measurement still
+requires the 20-document fixture set. What this establishes is that the approach
+is sound and the failure mode is understood — not that the numbers hold on paper
+scans.
+
+---
+
+## 8. Not yet measured
 
 Listed so the gaps are explicit rather than implied.
 

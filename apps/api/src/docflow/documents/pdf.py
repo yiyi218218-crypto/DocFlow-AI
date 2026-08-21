@@ -17,12 +17,17 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
+from pathlib import Path
 
 import pymupdf
 from PIL import Image
 
 from docflow.ai.alignment.text_map import TextMap, Word
-from docflow.ai.normalization.text import garbage_ratio
+from docflow.ai.normalization.text import (
+    garbage_ratio,
+    missing_glyph_ratio,
+    script_corruption_ratio,
+)
 from docflow.core.errors import CorruptDocument, EncryptedDocument, TooManyPages
 from docflow.core.logging import get_logger
 
@@ -39,6 +44,14 @@ MIN_CHARS_FOR_NATIVE = 120
 # which would have routed every real page to OCR.)
 MIN_COVERAGE_FOR_NATIVE = 0.005
 MAX_GARBAGE_RATIO = 0.15
+# A Bengali page whose ToUnicode mapping is broken extracts as plausible-looking
+# but unusable text. MEASURED: such a page aligns at 63-70 per line (every
+# citation UNVERIFIED) while OCR of the same rendered page scores 100. So for
+# Bengali the native text layer can be strictly WORSE than OCR, which inverts
+# the usual "prefer the text layer" rule. See docs/EVALUATION.md §7.
+MAX_SCRIPT_CORRUPTION = 0.05
+# Runs of '?' mean the producer had no glyph for those codepoints.
+MAX_MISSING_GLYPHS = 0.05
 
 
 @dataclass(slots=True)
@@ -52,14 +65,23 @@ class ParsedPage:
     char_count: int
     coverage: float
     garbage_ratio: float
+    script_corruption: float = 0.0
+    missing_glyphs: float = 0.0
 
     @property
     def has_usable_text_layer(self) -> bool:
-        """Whether the native text layer is good enough to skip OCR."""
+        """Whether the native text layer is good enough to skip OCR.
+
+        Absence of text is the obvious failure. Script corruption is the
+        dangerous one: the page has plenty of text, it passes every length and
+        coverage check, and it is silently unusable for citations.
+        """
         return (
             self.char_count >= MIN_CHARS_FOR_NATIVE
             and self.coverage >= MIN_COVERAGE_FOR_NATIVE
             and self.garbage_ratio < MAX_GARBAGE_RATIO
+            and self.script_corruption < MAX_SCRIPT_CORRUPTION
+            and self.missing_glyphs < MAX_MISSING_GLYPHS
         )
 
 
@@ -191,6 +213,8 @@ def _parse_page(page: pymupdf.Page, page_number: int) -> ParsedPage:
         char_count=len(text),
         coverage=text_map.coverage,
         garbage_ratio=garbage_ratio(text),
+        script_corruption=script_corruption_ratio(text),
+        missing_glyphs=missing_glyph_ratio(text),
     )
 
 
@@ -288,20 +312,33 @@ def image_to_pdf(image_bytes: bytes) -> bytes:
         raise CorruptDocument("This image could not be read.") from exc
 
 
-def text_to_pdf(text: str, *, title: str = "Document") -> bytes:
-    """Render plain text to a PDF using a Bengali-capable font.
+BENGALI_FONT = Path(__file__).parent / "fonts" / "NotoSansBengali.ttf"
 
-    Without a font that covers the Bengali block, Bangla .txt uploads render as
-    tofu boxes and produce an empty text layer.
+
+def text_to_pdf(text: str, *, title: str = "Document") -> bytes:
+    """Render plain text to a PDF with a Bengali-capable font.
+
+    The font is embedded, not assumed. Without a face covering the Bengali
+    block, Bangla text renders as `?????` and the extracted text layer is
+    worthless — which silently breaks the one market this product targets.
+    Verified by test_bangla_text_survives_the_pdf_round_trip.
     """
     doc = pymupdf.open()
     writer = pymupdf.DocumentWriter(buffer := io.BytesIO())
+
+    archive = pymupdf.Archive()
+    css_font = ""
+    if BENGALI_FONT.is_file():
+        archive.add(str(BENGALI_FONT), "NotoSansBengali.ttf")
+        css_font = "@font-face { font-family: bengali; src: url(NotoSansBengali.ttf); }"
+
     story = pymupdf.Story(
         html=f"<h3>{_escape(title)}</h3><pre>{_escape(text)}</pre>",
         user_css=(
-            "* { font-family: sans-serif; font-size: 10pt; }"
+            css_font + "* { font-family: bengali, sans-serif; font-size: 10pt; }"
             "pre { white-space: pre-wrap; word-wrap: break-word; }"
         ),
+        archive=archive,
     )
     rect = pymupdf.paper_rect("a4")
     body = rect + (36, 36, -36, -36)  # noqa: RUF005 - pymupdf.Rect arithmetic, not a tuple

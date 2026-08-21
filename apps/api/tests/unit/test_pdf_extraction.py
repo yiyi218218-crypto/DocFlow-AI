@@ -16,7 +16,12 @@ import pytest
 
 from docflow.ai.alignment.span_matcher import CitationStatus, align_quote
 from docflow.core.errors import EncryptedDocument, TooManyPages
-from docflow.documents.pdf import parse_pdf, render_page, text_to_pdf
+from docflow.documents.pdf import (
+    MIN_CHARS_FOR_NATIVE,
+    parse_pdf,
+    render_page,
+    text_to_pdf,
+)
 
 SENTENCE = "Applications must be submitted by 15 September 2026."
 
@@ -303,3 +308,63 @@ def test_single_line_page_has_no_spurious_paragraph_breaks() -> None:
     """Too little structure to infer paragraphs must mean none, not all."""
     text = parse_pdf(make_pdf()).pages[0].text
     assert "\n\n" not in text
+
+
+# --------------------------------------------------------------------------
+# Bengali: the text layer can be worse than OCR
+# --------------------------------------------------------------------------
+
+BENGALI_NOTICE = (
+    "ঢাকা বিশ্ববিদ্যালয়\n"
+    "আবেদনের শেষ তারিখ ১৫ সেপ্টেম্বর ২০২৬।\n"
+    "শিক্ষার্থীদের অবশ্যই একাডেমিক ট্রান্সক্রিপ্ট জমা দিতে হবে।\n"
+    "জাতীয় পরিচয়পত্রের ফটোকপি প্রয়োজন। অতিরিক্ত তথ্যের জন্য যোগাযোগ করুন।"
+)
+
+
+def test_bengali_text_renders_rather_than_becoming_question_marks() -> None:
+    """Without an embedded Bengali face the text layer is literally `?????`.
+
+    The font is bundled rather than assumed, because this must behave the same
+    on macOS, the Debian worker image and CI.
+    """
+    text = parse_pdf(text_to_pdf(BENGALI_NOTICE)).pages[0].text
+    assert "?????" not in text
+    bengali = sum(1 for ch in text if "\u0980" <= ch <= "\u09ff")
+    assert bengali > 40, f"almost no Bengali survived: {text[:80]!r}"
+
+
+def test_corrupt_bengali_text_layer_is_routed_to_ocr() -> None:
+    """The dangerous failure: plenty of text, passes every length and coverage
+    check, and silently unusable for citations.
+
+    Bengali conjuncts shape into ligature glyphs; when the ToUnicode CMap does
+    not map them back, extraction emits Latin-1/Greek substitutes inside
+    otherwise-Bengali words. Measured: 63-70 per-line alignment (every citation
+    UNVERIFIED) versus 100 for OCR of the same rendered page.
+    """
+    page = parse_pdf(text_to_pdf(BENGALI_NOTICE)).pages[0]
+
+    assert page.char_count >= MIN_CHARS_FOR_NATIVE, "not a length problem"
+    assert page.coverage >= 0.005, "not a coverage problem"
+    assert page.script_corruption > 0.05, "corruption not detected"
+    assert not page.has_usable_text_layer, "corrupt Bengali must route to OCR"
+
+
+def test_english_text_layer_is_not_sent_to_ocr() -> None:
+    """The corruption detector must not fire on documents it knows nothing about."""
+    page = parse_pdf(make_wrapped_pdf("\n".join([SENTENCE] * 6))).pages[0]
+    assert page.script_corruption == 0.0
+    assert page.has_usable_text_layer
+
+
+def test_code_switched_text_is_not_flagged_as_corrupt() -> None:
+    """Bangla-English mixing is normal in this corpus, not corruption."""
+    mixed = (
+        "Admission Circular 2026\n"
+        "আবেদনের শেষ তারিখ 15 September 2026\n"
+        "Applicants must submit একাডেমিক ট্রান্সক্রিপ্ট with the form.\n"
+    ) * 2
+    from docflow.ai.normalization.text import script_corruption_ratio
+
+    assert script_corruption_ratio(mixed) == 0.0

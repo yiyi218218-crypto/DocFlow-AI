@@ -39,6 +39,13 @@ PRICING: dict[str, Price] = {
     "claude-sonnet-4-6": Price(3.00, 15.00),
     "claude-haiku-4-5": Price(1.00, 5.00),
     "claude-fable-5": Price(10.00, 50.00),
+    # OpenAI chat — verified available on this account 2026-08-21.
+    # VERIFY pricing before relying on these for billing.
+    "gpt-4o-mini": Price(0.15, 0.60),
+    "gpt-4.1-mini": Price(0.40, 1.60),
+    "gpt-4.1-nano": Price(0.10, 0.40),
+    "gpt-5-mini": Price(0.25, 2.00),
+    "gpt-5-nano": Price(0.05, 0.40),
     # OpenAI embeddings
     "text-embedding-3-small": Price(0.02, 0.0),
     "text-embedding-3-large": Price(0.13, 0.0),

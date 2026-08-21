@@ -66,9 +66,9 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     gemini_api_key: SecretStr | None = None
 
-    llm_tier_fast: str = "anthropic:claude-haiku-4-5"
-    llm_tier_balanced: str = "anthropic:claude-sonnet-5"
-    llm_tier_deep: str = "anthropic:claude-opus-5"
+    llm_tier_fast: str = "openai:gpt-4.1-nano"
+    llm_tier_balanced: str = "openai:gpt-4o-mini"
+    llm_tier_deep: str = "openai:gpt-4.1-mini"
     embedding_model: str = "openai:text-embedding-3-small"
     embedding_dimensions: int = 1536
 
@@ -76,14 +76,14 @@ class Settings(BaseSettings):
     llm_max_retries: int = 3
 
     # --- cost controls ----------------------------------------------------
-    max_cost_per_document_usd: float = 2.00
-    daily_budget_per_workspace_usd: float = 5.00
-    free_tier_documents_per_month: int = 10
-    free_tier_queries_per_month: int = 30
+    max_cost_per_document_usd: float = 0.10
+    daily_budget_per_workspace_usd: float = 0.25
+    free_tier_documents_per_month: int = 20
+    free_tier_queries_per_month: int = 50
 
     # --- ingestion limits -------------------------------------------------
-    max_upload_bytes: int = 25 * 1024 * 1024
-    max_page_count: int = 150
+    max_upload_bytes: int = 10 * 1024 * 1024
+    max_page_count: int = 30
     allowed_mime_types: list[str] = Field(
         default_factory=lambda: [
             "application/pdf",
