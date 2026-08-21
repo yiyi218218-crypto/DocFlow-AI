@@ -117,8 +117,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return "ai"
         return "read"
 
+    # Circuit breaker. "Fail open" is only true if it fails FAST: redis-py
+    # retries a refused connection five times at ~1s each, which added five
+    # seconds to EVERY request when Redis was absent in production. After a
+    # failure the limiter is skipped outright until the cooldown expires, so the
+    # cost of an unreachable Redis is one slow request, not all of them.
+    _unavailable_until: ClassVar[float] = 0.0
+    COOLDOWN_SECONDS: ClassVar[int] = 60
+
+    @classmethod
+    def _mark_unavailable(cls) -> None:
+        cls._unavailable_until = time.monotonic() + cls.COOLDOWN_SECONDS
+        logger.warning("ratelimit.disabled", cooldown_s=cls.COOLDOWN_SECONDS)
+
+    @classmethod
+    def _is_available(cls) -> bool:
+        return time.monotonic() >= cls._unavailable_until
+
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.url.path.startswith("/health") or request.method == "OPTIONS":
+            return await call_next(request)
+
+        # No queue means no Redis to talk to; rate limiting is not a dependency
+        # worth inventing one for on a single-instance deployment.
+        if settings.worker_mode == "inline" or not self._is_available():
             return await call_next(request)
 
         bucket = self._bucket(request)

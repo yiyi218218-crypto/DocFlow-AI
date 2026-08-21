@@ -70,12 +70,21 @@ SHARED_TABLES = [
 def upgrade() -> None:
     # The app role must exist even on a fresh managed database where
     # infra/docker/init-db.sql never ran.
+    # Create the role WITHOUT a password. A migration must never mint a
+    # credential: the value would be identical in every environment, live in
+    # version control forever, and managed providers reject it outright (Neon
+    # returns "insecure password" for exactly this).
+    #
+    # The operator grants LOGIN and a password out of band:
+    #     ALTER ROLE docflow WITH LOGIN PASSWORD '<generated>';
+    # Locally, infra/docker/init-db.sql has already created the role with
+    # credentials, so this DO block is a no-op. See docs/DEPLOYMENT.md.
     op.execute(
         f"""
         DO $$
         BEGIN
           IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{APP_ROLE}') THEN
-            CREATE ROLE {APP_ROLE} LOGIN PASSWORD '{APP_ROLE}';
+            CREATE ROLE {APP_ROLE} NOLOGIN;
           END IF;
         END
         $$;
