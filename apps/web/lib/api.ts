@@ -170,3 +170,31 @@ export async function bootstrapSession(): Promise<SessionResponse | null> {
     return null;
   }
 }
+
+/**
+ * Fetch a binary resource with the access token attached.
+ *
+ * pdf.js fetches its URL itself and cannot attach our in-memory bearer token,
+ * so pointing it at an authenticated endpoint yields a 401 and no viewer at
+ * all. Instead we fetch here — following the 302 to the presigned object URL,
+ * which carries its own signature — and hand pdf.js a blob: URL.
+ *
+ * The 25 MB upload cap bounds the memory cost. If that limit ever rises,
+ * switch to a signed URL the viewer can request directly and stream.
+ */
+export async function fetchBlobUrl(path: string): Promise<string> {
+  const request = async (): Promise<Response> =>
+    fetch(path, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      credentials: 'include',
+    });
+
+  let response = await request();
+  if (response.status === 401 && (await refreshSession())) {
+    response = await request();
+  }
+  if (!response.ok) {
+    throw new Error(`Could not load the document (${response.status}).`);
+  }
+  return URL.createObjectURL(await response.blob());
+}

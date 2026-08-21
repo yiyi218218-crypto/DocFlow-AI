@@ -18,6 +18,7 @@ The cost is duplicate facts across window boundaries, which the merge step handl
 from __future__ import annotations
 
 import asyncio
+import re
 import secrets
 import uuid
 from dataclasses import dataclass, field
@@ -47,6 +48,22 @@ from docflow.models.enums import (
 )
 
 logger = get_logger(__name__)
+
+_PAGE_MARKER = re.compile(r"\[page\s+\d+\]\s*", re.IGNORECASE)
+
+
+def _clean_display_text(value: str | None) -> str | None:
+    """Strip pipeline artifacts from anything shown to a user.
+
+    Window text carries `[page N]` markers so the model can attribute a quote to
+    a page. Those are ours, not the document's — a model that echoes one back
+    into a title or summary must not leak it into the UI.
+    """
+    if not value:
+        return None
+    cleaned = _PAGE_MARKER.sub("", value).strip()
+    return cleaned or None
+
 
 EXTRACTION_TOOL_NAME = "record_document_facts"
 CORE_PROMPT = "extraction/v1_core.md"
@@ -291,9 +308,9 @@ def _merge_metadata(
     """Document-level fields: first non-empty wins, since the first window sees
     the header where title, organization and reference number actually live."""
     for a in analyses:
-        result.title = result.title or a.title
-        result.summary = result.summary or a.summary
-        result.organization = result.organization or a.organization
+        result.title = result.title or _clean_display_text(a.title)
+        result.summary = result.summary or _clean_display_text(a.summary)
+        result.organization = result.organization or _clean_display_text(a.organization)
         result.reference_number = result.reference_number or a.reference_number
         if a.document_type != DocumentType.OTHER and result.document_type == DocumentType.OTHER:
             result.document_type = a.document_type

@@ -209,3 +209,23 @@ async def test_empty_document_extracts_nothing_without_raising() -> None:
     result = await extract_document(parse_pdf(blank))
     assert result.facts == []
     assert result.windows_failed == 0
+
+
+async def test_page_markers_never_leak_into_user_facing_text() -> None:
+    """`[page N]` markers are ours, injected so the model can attribute quotes.
+
+    A model that echoes one back must not leak it into a title the user reads.
+    """
+    from docflow.ai.extraction.extractor import _clean_display_text
+
+    assert _clean_display_text("[page 1] University of Dhaka") == "University of Dhaka"
+    assert _clean_display_text("[PAGE 12]  Ministry of Education") == "Ministry of Education"
+    assert _clean_display_text("Already clean") == "Already clean"
+    assert _clean_display_text("[page 1]") is None
+    assert _clean_display_text(None) is None
+
+    result = await extract_document(parse_pdf(build_pdf()))
+    assert result.title is not None
+    assert "[page" not in result.title.lower()
+    if result.summary:
+        assert "[page" not in result.summary.lower()

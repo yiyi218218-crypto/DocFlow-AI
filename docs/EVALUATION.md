@@ -152,6 +152,35 @@ number was plausible, cited in a design document, and wrong by ~50×.*
 
 ---
 
+## 4c. The citation interaction, in a real browser
+
+**Measured 2026-08-21 — 5/5 passing** (`apps/web/e2e/citation.spec.ts`, Chromium).
+
+The differentiator, asserted end to end against the seeded demo workspace:
+
+| Behaviour | Result |
+|---|---|
+| Sign in, list seeded documents | pass |
+| **Click a deadline → source span highlights on the correct page** | pass |
+| Highlight rectangle has a sane on-screen size (>20×4 px) | pass |
+| Active fact mirrored to `?fact=&page=` | pass |
+| Highlight restored after a full page reload | pass |
+| Deadline shows the raw date text from the document | pass |
+| Citation verification rate reported in the UI | pass (100%) |
+
+Two real bugs surfaced only by running this in a browser:
+
+- **pdf.js cannot send our in-memory bearer token.** It fetches its own URL, so
+  pointing it at an authenticated endpoint returned 401 and rendered no viewer
+  at all. The client now fetches the PDF itself and hands pdf.js a blob URL.
+  This is exactly the failure mode [10-architecture.md](10-architecture.md) §26.2
+  predicted ("this will be your first deploy bug") — it just happened locally first.
+- **Document titles leaked the internal `[page N]` marker.** Those markers are
+  injected so the model can attribute a quote to a page; a model echoing one back
+  must never reach a user-facing field. Now stripped provider-agnostically.
+
+---
+
 ## 5. Date normalization
 
 **Measured — 30/30 passing** (`tests/unit/test_date_normalization.py`).

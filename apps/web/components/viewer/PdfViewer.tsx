@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { fetchBlobUrl } from '@/lib/api';
 import { useViewerStore } from '@/lib/stores/viewer';
 import type { DocumentPage, Rect } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -48,8 +49,14 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
     let cancelled = false;
     let doc: PDFDocumentProxy | null = null;
 
+    let objectUrl: string | null = null;
+
     (async () => {
       try {
+        // Authenticated fetch first: pdf.js cannot attach our bearer token.
+        objectUrl = await fetchBlobUrl(fileUrl);
+        if (cancelled) return;
+
         const pdfjs = await import('pdfjs-dist');
         // The worker is copied into /public by scripts/copy-pdf-worker.mjs.
         // Next does not bundle it, and a `?url` import does not resolve during
@@ -57,8 +64,7 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
         const task = pdfjs.getDocument({
-          url: fileUrl,
-          withCredentials: false,
+          url: objectUrl,
           // PDFs can carry JavaScript and XFA. We render untrusted documents,
           // so both stay off (docs/50-security-ops.md §16.5).
           isEvalSupported: false,
@@ -76,6 +82,7 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
     return () => {
       cancelled = true;
       void doc?.destroy();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [fileUrl]);
 

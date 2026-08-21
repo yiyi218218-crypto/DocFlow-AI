@@ -123,6 +123,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         bucket = self._bucket(request)
         limit, window = self.LIMITS[bucket]
+        # Production limits throttle a developer or an E2E run into uselessness
+        # (five logins a minute is one test file). The limiter still runs and
+        # still emits RateLimit-* headers, so the behaviour stays covered.
+        if settings.is_local:
+            limit *= 20
         identity = getattr(request.state, "user_id", None) or _client_ip(request)
         key = f"rl:{bucket}:{identity}"
 

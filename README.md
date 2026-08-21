@@ -3,9 +3,14 @@
 > **Turn documents into decisions, deadlines, tasks and actions** — with every fact traceable to the exact line it came from.
 
 [![CI](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-328%20passing-2F6B3D)](apps/api/tests)
+[![tests](https://img.shields.io/badge/tests-331%20passing-2F6B3D)](apps/api/tests)
 [![python](https://img.shields.io/badge/python-3.12-24466E)](apps/api/pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-4A5568)](LICENSE)
+
+![Clicking a deadline highlights its exact source span on the page](docs/images/viewer-citation.png)
+
+*Click the deadline on the right; the source sentence highlights on the left. The card shows the
+normalized date, how long is left, **and** the raw text the document actually contained.*
 
 ---
 
@@ -165,8 +170,8 @@ normalized due dates returned over HTTP.
 | Document pipeline (11 stages) | ✅ resumable, idempotent, integration-tested |
 | Span alignment & citations | ✅ verified against rendered pixels |
 | LLM abstraction + usage ledger | ✅ 3 providers, cost per call recorded |
-| Auth, permissions, API | ✅ 328 tests |
-| Frontend | 🚧 in progress — see [prompt.md](prompt.md) |
+| Auth, permissions, API | ✅ 331 backend tests |
+| Frontend + viewer | ✅ 5/5 Playwright E2E in Chromium |
 | Grounded chat / hybrid retrieval | 🚧 chunks + embeddings land; query path next |
 | Labeled eval dataset | ⬜ the blocking gap — see [EVALUATION.md](docs/EVALUATION.md) §6 |
 
