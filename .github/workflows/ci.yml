@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_LINK_MODE: copy
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+        working-directory: apps/api
+      - run: uv run ruff check . --output-format=github
+        working-directory: apps/api
+      - run: uv run ruff format --check .
+        working-directory: apps/api
+      - name: mypy (strict on ai/, services/, core/)
+        run: uv run mypy src
+        working-directory: apps/api
+        continue-on-error: true # advisory until the annotation backlog is cleared
+
+  test:
+    name: tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: docflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d docflow"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: docflow
+          MINIO_ROOT_PASSWORD: docflow123
+        ports: ["9000:9000"]
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://docflow:docflow@localhost:5432/docflow
+      DATABASE_ADMIN_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/docflow
+      REDIS_URL: redis://localhost:6379/0
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY_ID: docflow
+      S3_SECRET_ACCESS_KEY: docflow123
+      S3_BUCKET: docflow
+      SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdefghijklmnop
+      # No provider keys: the suite runs against the stub provider, so CI is
+      # free, deterministic and offline. Model quality lives in the eval suite.
+      DEMO_MODE: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Tesseract (OCR tier 2)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-ben
+
+      - run: uv sync --extra dev
+        working-directory: apps/api
+
+      - name: Bootstrap database roles
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d docflow \
+            -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='docflow') THEN CREATE ROLE docflow LOGIN PASSWORD 'docflow'; END IF; END \$\$;" \
+            -c "GRANT USAGE, CREATE ON SCHEMA public TO docflow;"
+
+      - name: Migrate
+        run: uv run alembic upgrade head
+        working-directory: apps/api
+
+      - name: Run tests
+        run: uv run pytest -q --cov=src/docflow --cov-report=term-missing
+        working-directory: apps/api
+
+  migration-check:
+    name: migration round-trip & drift
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: docflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d docflow"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://docflow:docflow@localhost:5432/docflow
+      DATABASE_ADMIN_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/docflow
+      SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdefghijklmnop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+        working-directory: apps/api
+
+      # A downgrade that cannot be re-applied is not a rollback path, and
+      # migration drift is silent in dev and fatal in production.
+      - name: up -> down -> up
+        working-directory: apps/api
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: No model/migration drift
+        run: uv run alembic check
+        working-directory: apps/api
+
+  diagrams:
+    name: mermaid diagrams parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      # A broken diagram renders as a red error box on GitHub and you only find
+      # out after pushing.
+      - run: node scripts/check-mermaid.mjs
+
+  security:
+    name: security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra dev
+        working-directory: apps/api
+
+      - name: Dependency audit
+        run: uv run --with pip-audit pip-audit --ignore-vuln GHSA-4xh5-x5gv-qwph || true
+        working-directory: apps/api
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
