@@ -32,7 +32,7 @@ const PdfViewer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full items-center justify-center bg-surface-2">
+      <div className="flex h-full items-center justify-center bg-sunken">
         <div className="size-2 animate-pulse rounded-full bg-accent" />
       </div>
     ),
@@ -116,21 +116,21 @@ export default function DocumentPage() {
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border px-4">
-        <Link href="/documents" className="text-muted hover:text-fg" aria-label="Back">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-line px-4 lg:px-5">
+        <Link href="/documents" className="rounded p-1 text-ink-3 transition-colors duration-200 hover:bg-raised hover:text-ink" aria-label="Back to documents">
           ←
         </Link>
-        <p className="truncate text-[13px] font-medium">
+        <p className="truncate text-[13.5px] font-medium">
           {document.title ?? document.original_filename}
         </p>
-        <span className="hidden font-mono text-[11px] text-faint sm:inline">
+        <span className="hidden font-mono text-[11px] text-ink-4 sm:inline">
           {document.document_type?.replace(/_/g, ' ')} · {document.language} ·{' '}
           {document.page_count}p
         </span>
 
         {data.citation_verification_rate !== null && (
           <span
-            className="ml-auto font-mono text-[11px] text-faint"
+            className="ml-auto shrink-0 font-mono text-[11px] text-ink-3"
             title="Share of facts whose quote was matched against the source text"
           >
             {Math.round(data.citation_verification_rate * 100)}% citations verified
@@ -141,7 +141,7 @@ export default function DocumentPage() {
       {document.security_flags.includes('injection_suspected') && (
         <div
           role="alert"
-          className="shrink-0 border-b border-medium/30 bg-medium/10 px-4 py-2 text-xs text-medium"
+          className="shrink-0 border-b border-warn/30 bg-warn/[0.08] px-4 py-2 text-[12px] text-warn lg:px-5"
         >
           This document contains text that attempts to manipulate AI systems.
           Results may be unreliable.
@@ -149,18 +149,18 @@ export default function DocumentPage() {
       )}
 
       <div className="grid min-h-0 flex-1 grid-rows-2 lg:grid-cols-[1fr_400px] lg:grid-rows-1">
-        <div className="min-h-0 border-b border-border lg:border-b-0 lg:border-r">
+        <div className="min-h-0 border-b border-line lg:border-b-0 lg:border-r">
           <PdfViewer fileUrl={`/api/v1/documents/${id}/file`} pages={pages} />
         </div>
 
         <aside className="min-h-0 overflow-y-auto bg-bg">
-          <div className="flex flex-col gap-5 p-4">
+          <div className="flex flex-col gap-6 p-4 lg:p-5">
             {document.summary && (
               <section>
-                <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
+                <h2 className="eyebrow">
                   Summary
                 </h2>
-                <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                <p className="mt-2 text-[12.5px] leading-relaxed text-ink-2">
                   {document.summary}
                 </p>
               </section>
@@ -168,11 +168,11 @@ export default function DocumentPage() {
 
             {grouped.map(({ kind, items }) => (
               <section key={kind}>
-                <h2 className="flex items-baseline gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-faint">
+                <h2 className="eyebrow flex items-baseline gap-2">
                   {FACT_LABELS[kind]}
-                  <span className="text-faint/70">{items.length}</span>
+                  <span className="text-ink-4">{items.length}</span>
                 </h2>
-                <div className="mt-2 flex flex-col gap-1.5">
+                <div className="mt-2 flex flex-col gap-1">
                   {items.map((fact) => (
                     <FactCard key={fact.id} fact={fact} />
                   ))}
@@ -181,14 +181,14 @@ export default function DocumentPage() {
             ))}
 
             {data.low_confidence_hidden > 0 && (
-              <p className="rounded-[--radius] border border-dashed border-border px-3 py-2 text-[11px] text-faint">
+              <p className="rounded-[--radius-inner] border border-dashed border-line px-3 py-2 text-[11px] text-ink-4">
                 {data.low_confidence_hidden} low-confidence item
                 {data.low_confidence_hidden === 1 ? '' : 's'} hidden
               </p>
             )}
 
             {grouped.length === 0 && (
-              <p className="text-xs text-muted">
+              <p className="text-[12.5px] text-ink-2">
                 No facts were extracted from this document.
               </p>
             )}
@@ -206,18 +206,18 @@ function ProcessingView({ analysis }: { analysis: DocumentAnalysis }) {
   const progress = document.stages.length ? done / document.stages.length : 0;
 
   return (
-    <main className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+    <main id="main" className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
       <div className="size-2 animate-pulse rounded-full bg-accent" />
-      <h1 className="mt-4 text-sm font-medium">{document.original_filename}</h1>
+      <h1 className="mt-4 text-[14px] font-medium">{document.original_filename}</h1>
       {/* Honest per-stage progress. Users tolerate 90 seconds if they can see
           movement; a fake spinner reads as a hang. */}
-      <p className="mt-1 font-mono text-xs text-muted">
+      <p className="mt-1 font-mono text-[12px] text-ink-2">
         {running ? STAGE_LABELS[running.stage] ?? running.stage : 'Queued'}
       </p>
 
-      <div className="mt-5 h-1 w-full overflow-hidden rounded-full bg-surface-2">
+      <div className="mt-5 h-[3px] w-full overflow-hidden rounded-full bg-sunken">
         <div
-          className="h-full rounded-full bg-accent transition-[width] duration-500"
+          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
           style={{ width: `${Math.max(4, progress * 100)}%` }}
         />
       </div>
@@ -228,10 +228,10 @@ function ProcessingView({ analysis }: { analysis: DocumentAnalysis }) {
             key={stage.stage}
             className={cn(
               'flex items-center justify-between font-mono text-[11px]',
-              stage.status === 'completed' && 'text-muted',
+              stage.status === 'completed' && 'text-ink-3',
               stage.status === 'running' && 'text-accent',
-              stage.status === 'pending' && 'text-faint',
-              stage.status === 'failed' && 'text-danger',
+              stage.status === 'pending' && 'text-ink-4',
+              stage.status === 'failed' && 'text-crit',
             )}
           >
             <span>{STAGE_LABELS[stage.stage] ?? stage.stage}</span>
@@ -252,14 +252,14 @@ function ProcessingView({ analysis }: { analysis: DocumentAnalysis }) {
 function FailedView({ analysis }: { analysis: DocumentAnalysis }) {
   const { document } = analysis;
   return (
-    <main className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
-      <h1 className="text-sm font-medium">This document could not be processed</h1>
+    <main id="main" className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center">
+      <h1 className="text-[15px] font-semibold">This document could not be processed</h1>
       {/* The API returns messages a user can act on, not stack traces. */}
-      <p className="mt-2 text-xs text-muted">{document.error_detail}</p>
-      <p className="mt-3 font-mono text-[11px] text-faint">{document.error_code}</p>
+      <p className="mt-2 max-w-[44ch] text-[13px] text-ink-2">{document.error_detail}</p>
+      <p className="mt-3 font-mono text-[11px] text-ink-4">{document.error_code}</p>
       <Link
         href="/documents"
-        className="mt-6 h-8 rounded-[--radius] border border-border-strong px-3 text-xs font-medium leading-8 hover:bg-surface-2"
+        className="mt-6 h-9 rounded-[--radius-inner] border border-line-strong px-4 text-[13px] font-medium leading-9 transition-colors duration-200 hover:border-accent hover:text-accent"
       >
         Back to documents
       </Link>

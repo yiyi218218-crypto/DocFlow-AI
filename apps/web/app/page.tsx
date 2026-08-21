@@ -17,7 +17,7 @@ export default function Home() {
     <main className="flex min-h-dvh items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="size-2 animate-pulse rounded-full bg-accent" />
-        <p className="font-mono text-xs text-faint">DocFlow AI</p>
+        <p className="font-mono text-[11px] text-ink-4">DocFlow</p>
       </div>
     </main>
   );

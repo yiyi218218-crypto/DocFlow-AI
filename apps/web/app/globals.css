@@ -1,97 +1,212 @@
 @import 'tailwindcss';
 
-/* Design tokens — docs/40-frontend.md §14.4.
-   Borders not shadows. One accent. No gradients. Dense. */
+/* ---------------------------------------------------------------------------
+   DocFlow design tokens
+
+   Two decisions worth stating:
+
+   1. The accent is WARM, not blue-violet. Every AI product ships the same
+      indigo-to-purple palette; it reads as a template. DocFlow's own colour is
+      the one it puts on the page — the citation highlight — so the whole system
+      is built in that warm family: amber highlight, rust accent, warm greys.
+      One accent, one grey family, saturation kept modest.
+
+   2. Numbers are tabular everywhere. This is a data interface: deadlines,
+      counts, confidence, page numbers. Proportional digits make columns wobble.
+--------------------------------------------------------------------------- */
+
 @theme {
-  --color-bg: oklch(0.99 0 0);
+  /* Warm neutrals — a single grey family, tinted ~60deg. */
+  --color-bg: oklch(0.992 0.003 70);
   --color-surface: oklch(1 0 0);
-  --color-surface-2: oklch(0.975 0.002 260);
-  --color-border: oklch(0.92 0.004 260);
-  --color-border-strong: oklch(0.86 0.006 260);
-  --color-fg: oklch(0.22 0.01 260);
-  --color-muted: oklch(0.55 0.01 260);
-  --color-faint: oklch(0.68 0.008 260);
-  --color-accent: oklch(0.58 0.19 264);
-  --color-accent-soft: oklch(0.95 0.03 264);
+  --color-raised: oklch(0.978 0.004 70);
+  --color-sunken: oklch(0.962 0.006 70);
+  --color-line: oklch(0.915 0.005 70);
+  --color-line-strong: oklch(0.845 0.008 70);
 
-  --color-high: oklch(0.55 0.14 150);
-  --color-medium: oklch(0.62 0.14 75);
-  --color-low: oklch(0.6 0.02 260);
-  --color-danger: oklch(0.55 0.19 25);
+  --color-ink: oklch(0.21 0.012 60);
+  --color-ink-2: oklch(0.44 0.012 60);
+  --color-ink-3: oklch(0.60 0.010 60);
+  --color-ink-4: oklch(0.72 0.008 60);
 
-  /* The citation highlight. Also the artifact accent — the product's colour
-     is literally the colour of the thing it does. */
-  --color-highlight: oklch(0.88 0.16 95);
+  /* One accent: a muted rust. Distinct from the yellow highlight so
+     "interactive" and "cited" never read as the same thing. */
+  --color-accent: oklch(0.55 0.135 47);
+  --color-accent-hover: oklch(0.49 0.14 47);
+  --color-accent-wash: oklch(0.955 0.022 60);
+  --color-accent-line: oklch(0.86 0.055 55);
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* The citation highlight — the product's signature. */
+  --color-cite: oklch(0.885 0.145 92);
+  --color-cite-strong: oklch(0.78 0.16 80);
+
+  --color-ok: oklch(0.56 0.115 155);
+  --color-warn: oklch(0.66 0.13 72);
+  --color-crit: oklch(0.55 0.17 27);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, 'SF Mono', menlo, monospace;
   --font-bangla: 'Noto Sans Bengali', var(--font-sans);
-  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --radius: 0.5rem;
+  --radius-card: 0.625rem;
+  --radius-inner: 0.375rem;
+
+  /* Shadows carry the background's hue instead of neutral black, which is what
+     stops them looking like a default Tailwind card. */
+  --shadow-raise: 0 1px 2px oklch(0.45 0.02 60 / 0.05), 0 4px 12px oklch(0.45 0.02 60 / 0.05);
+  --shadow-pop: 0 2px 4px oklch(0.45 0.02 60 / 0.06), 0 12px 28px oklch(0.45 0.02 60 / 0.09);
 }
 
 @layer base {
   :root {
     color-scheme: light;
+    --grain-opacity: 0.028;
   }
 
   .dark {
-    --color-bg: oklch(0.16 0.008 260);
-    --color-surface: oklch(0.19 0.009 260);
-    --color-surface-2: oklch(0.23 0.01 260);
-    --color-border: oklch(0.28 0.012 260);
-    --color-border-strong: oklch(0.36 0.014 260);
-    --color-fg: oklch(0.93 0.004 260);
-    --color-muted: oklch(0.68 0.01 260);
-    --color-faint: oklch(0.52 0.01 260);
-    --color-accent: oklch(0.72 0.16 264);
-    --color-accent-soft: oklch(0.28 0.06 264);
-    --color-high: oklch(0.72 0.15 150);
-    --color-medium: oklch(0.78 0.14 75);
-    --color-low: oklch(0.6 0.02 260);
-    --color-danger: oklch(0.68 0.17 25);
+    --color-bg: oklch(0.168 0.006 65);
+    --color-surface: oklch(0.203 0.007 65);
+    --color-raised: oklch(0.232 0.008 65);
+    --color-sunken: oklch(0.148 0.006 65);
+    --color-line: oklch(0.285 0.009 65);
+    --color-line-strong: oklch(0.375 0.011 65);
+
+    --color-ink: oklch(0.945 0.004 70);
+    --color-ink-2: oklch(0.735 0.008 70);
+    --color-ink-3: oklch(0.585 0.009 70);
+    --color-ink-4: oklch(0.455 0.009 70);
+
+    --color-accent: oklch(0.72 0.135 55);
+    --color-accent-hover: oklch(0.78 0.14 55);
+    --color-accent-wash: oklch(0.27 0.045 50);
+    --color-accent-line: oklch(0.38 0.06 50);
+
+    --color-ok: oklch(0.72 0.13 155);
+    --color-warn: oklch(0.78 0.13 75);
+    --color-crit: oklch(0.68 0.16 27);
+
     color-scheme: dark;
+    --grain-opacity: 0.045;
   }
 
   * {
-    border-color: var(--color-border);
+    border-color: var(--color-line);
+    min-width: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
     background: var(--color-bg);
-    color: var(--color-fg);
+    color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: 14px;
+    line-height: 1.55;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* Columns of deadlines and counts must not wobble. */
+    font-variant-numeric: tabular-nums;
   }
 
-  /* Bengali conjuncts need vertical room or they collide. */
+  /* Grain. Breaks the flatness that makes generated UI feel like a mockup. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: var(--grain-opacity);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.017em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Bengali conjuncts collide without extra vertical room. */
   [lang='bn'],
-  .bangla {
+  .bn {
     font-family: var(--font-bangla);
-    line-height: 1.75;
+    line-height: 1.85;
   }
 
   ::selection {
-    background: var(--color-accent-soft);
+    background: var(--color-cite);
+    color: oklch(0.2 0.02 60);
   }
 
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-ink-4);
+    background-clip: content-box;
   }
 }
 
-/* The one deliberate flourish: it teaches the user what just happened. */
-@keyframes citation-pulse {
+@layer components {
+  /* Keyboard users land here first. */
+  .skip-link {
+    position: absolute;
+    left: 0.5rem;
+    top: -3rem;
+    z-index: 200;
+    border-radius: var(--radius-inner);
+    background: var(--color-accent);
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: white;
+    transition: top 160ms ease;
+  }
+  .skip-link:focus {
+    top: 0.5rem;
+  }
+
+  /* Small label text. Sentence case with open tracking, not shouty all-caps —
+     the audit calls all-caps subheaders a generic tell, and it is. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    color: var(--color-ink-3);
+  }
+}
+
+/* --- citation highlight ---------------------------------------------------
+   The one deliberate flourish in the product: it teaches the user that the
+   fact they clicked came from exactly this sentence. */
+
+@keyframes cite-land {
   0% {
-    background-color: color-mix(in oklch, var(--color-highlight) 78%, transparent);
-    outline-color: var(--color-accent);
+    background-color: color-mix(in oklch, var(--color-cite-strong) 85%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-cite-strong) 40%, transparent);
   }
   100% {
-    background-color: color-mix(in oklch, var(--color-highlight) 40%, transparent);
-    outline-color: transparent;
+    background-color: color-mix(in oklch, var(--color-cite) 46%, transparent);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 
@@ -99,8 +214,7 @@
   position: absolute;
   pointer-events: none;
   border-radius: 2px;
-  outline: 2px solid transparent;
-  background-color: color-mix(in oklch, var(--color-highlight) 40%, transparent);
+  background-color: color-mix(in oklch, var(--color-cite) 46%, transparent);
   mix-blend-mode: multiply;
 }
 
@@ -109,14 +223,36 @@
 }
 
 .citation-rect--active {
-  animation: citation-pulse 900ms ease-out;
+  animation: cite-land 1100ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- entrance -------------------------------------------------------------
+   Staggered, transform+opacity only, so it stays on the compositor. */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

@@ -62,3 +62,8 @@ export function isBangla(text: string): boolean {
   }
   return letters > 0 && bengali / letters > 0.3;
 }
+
+/** Compact date for dense rails: "15 Sep". */
+export function formatDayMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}

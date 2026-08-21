@@ -86,19 +86,36 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
     };
   }, [fileUrl]);
 
-  // Scroll to the page carrying the active highlight.
+  // Scroll to the HIGHLIGHT, not the page.
+  //
+  // Centring the page element looks correct on a 40-page report and is visibly
+  // broken on a one-page circular: every fact re-centres the same page, so
+  // clicking between facts lurches back and forth instead of moving to the
+  // sentence. Rectangles are normalised to [0,1] of the page box, so the exact
+  // offset is just rect.y0 * pageHeight.
   useEffect(() => {
-    if (!activeHighlight || !containerRef.current) return;
-    const target = containerRef.current.querySelector<HTMLElement>(
+    const container = containerRef.current;
+    if (!activeHighlight || !container) return;
+
+    const pageEl = container.querySelector<HTMLElement>(
       `[data-page="${activeHighlight.page}"]`,
     );
-    if (!target) return;
+    if (!pageEl) return;
 
-    const distance = Math.abs(activeHighlight.page - useViewerStore.getState().currentPage);
-    target.scrollIntoView({
-      // Smooth-scrolling 40 pages takes seconds and reads as broken.
-      behavior: distance > 3 ? 'auto' : 'smooth',
-      block: 'center',
+    const firstRect = activeHighlight.rects[0];
+    const offsetIntoPage = firstRect ? firstRect.y0 * pageEl.offsetHeight : 0;
+
+    // Sit the highlight a third of the way down: high enough to read the lines
+    // above it for context, low enough not to hide under the toolbar.
+    const target =
+      pageEl.offsetTop + offsetIntoPage - container.clientHeight * 0.33;
+
+    const distance = Math.abs(target - container.scrollTop);
+    container.scrollTo({
+      top: Math.max(0, target),
+      // Smooth-scrolling the length of a long document takes seconds and reads
+      // as a hang, so long jumps are instant.
+      behavior: distance > container.clientHeight * 3 ? 'auto' : 'smooth',
     });
   }, [activeHighlight, scrollNonce]);
 
@@ -111,13 +128,13 @@ export function PdfViewer({ fileUrl, pages }: PdfViewerProps) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
         <p className="text-sm font-medium">This PDF could not be displayed</p>
-        <p className="max-w-sm text-xs text-muted">{loadError}</p>
+        <p className="max-w-sm text-xs text-ink-2">{loadError}</p>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="h-full overflow-y-auto bg-surface-2 px-6 py-6">
+    <div ref={containerRef} className="relative h-full overflow-y-auto bg-sunken px-6 py-8">
       <div className="mx-auto flex flex-col items-center gap-5">
         {pages.map((page) => (
           <PageCanvas
@@ -218,7 +235,7 @@ function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: Pag
     <div
       ref={wrapperRef}
       data-page={page.page_number}
-      className="relative shrink-0 scroll-mt-6 border border-border bg-white"
+      className="relative shrink-0 rounded-[2px] border border-line bg-white shadow-[var(--shadow-raise)]"
       style={{ width, height }}
     >
       {/* Rendered image first: it appears instantly and is replaced by the
@@ -254,7 +271,7 @@ function PageCanvas({ pdf, page, zoom, highlight, highlightKey, onVisible }: Pag
         </div>
       )}
 
-      <span className="absolute -bottom-px right-2 translate-y-full pt-1 font-mono text-[10px] text-faint">
+      <span className="absolute -bottom-px right-1 translate-y-full pt-1.5 font-mono text-[10px] text-ink-4">
         {page.page_number}
       </span>
     </div>

@@ -14,9 +14,27 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3100',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+
+  // Run against a PRODUCTION build, not `next dev`.
+  //
+  // In dev, `router.push` waits on on-demand route compilation, so a
+  // client-side navigation can stall past the test timeout after an edit —
+  // producing failures that have nothing to do with the app. A production build
+  // has no compile step and is what actually ships.
+  //
+  // Skipped when E2E_BASE_URL points at a deployed environment.
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run build && npm run start -- --port 3100',
+        url: 'http://localhost:3100/login',
+        reuseExistingServer: !process.env.CI,
+        timeout: 180_000,
+        stdout: 'ignore',
+      },
 });

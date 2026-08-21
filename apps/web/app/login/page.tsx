@@ -37,11 +37,11 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh lg:grid-cols-2">
+    <main id="main" className="grid min-h-dvh lg:grid-cols-2">
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-sm">
-          <h1 className="text-lg font-semibold tracking-tight">Sign in to DocFlow</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1 className="text-[21px] font-semibold tracking-[-0.02em]">Sign in to DocFlow</h1>
+          <p className="mt-1.5 text-[13.5px] text-ink-2">
             Turn documents into deadlines, tasks and actions.
           </p>
 
@@ -53,31 +53,31 @@ export default function LoginPage() {
             }}
           >
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted">Email</span>
+              <span className="text-[12px] font-medium text-ink-2">Email</span>
               <input
                 type="email"
                 required
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-9 rounded-[--radius] border border-border bg-surface px-3 text-sm outline-none focus:border-accent"
+                className="h-9 rounded-[--radius] border border-line bg-surface px-3 text-[13.5px] outline-none transition-colors duration-200 focus:border-accent"
               />
             </label>
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-muted">Password</span>
+              <span className="text-[12px] font-medium text-ink-2">Password</span>
               <input
                 type="password"
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-9 rounded-[--radius] border border-border bg-surface px-3 text-sm outline-none focus:border-accent"
+                className="h-9 rounded-[--radius] border border-line bg-surface px-3 text-[13.5px] outline-none transition-colors duration-200 focus:border-accent"
               />
             </label>
 
             {error && (
-              <p role="alert" className="text-xs text-danger">
+              <p role="alert" className="text-[12px] text-crit">
                 {error}
               </p>
             )}
@@ -85,22 +85,22 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="mt-1 h-9 rounded-[--radius] bg-accent text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-1 h-9 rounded-[--radius] bg-accent text-[13.5px] font-medium text-white shadow-[var(--shadow-raise)] transition-all duration-200 hover:bg-accent-hover active:scale-[0.98] disabled:opacity-50"
             >
               {busy ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
 
-          <div className="mt-6 rounded-[--radius] border border-border bg-surface-2 p-3">
-            <p className="text-xs font-medium">Try the demo workspace</p>
-            <p className="mt-0.5 text-[11px] text-muted">
+          <div className="mt-7 rounded-[--radius-card] border border-line bg-raised p-3.5">
+            <p className="text-[12.5px] font-medium">Try the demo workspace</p>
+            <p className="mt-1 text-[11.5px] text-ink-2">
               Three processed circulars with deadlines, requirements and tasks.
             </p>
             <button
               type="button"
               disabled={busy}
               onClick={() => void signIn(DEMO_EMAIL, DEMO_PASSWORD)}
-              className="mt-2 h-8 w-full rounded-[--radius] border border-border-strong bg-surface text-xs font-medium hover:bg-surface-2 disabled:opacity-50"
+              className="mt-2.5 h-8 w-full rounded-[--radius-inner] border border-line-strong bg-surface text-[12.5px] font-medium transition-all duration-200 hover:border-accent hover:text-accent active:scale-[0.99] disabled:opacity-50"
             >
               Open the demo
             </button>
@@ -109,16 +109,16 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel states the thesis rather than decorating. */}
-      <div className="hidden border-l border-border bg-surface-2 lg:flex lg:items-center lg:justify-center lg:p-16">
+      <div className="hidden border-l border-line bg-raised lg:flex lg:items-center lg:justify-center lg:p-16">
         <div className="max-w-sm">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-accent">
+          <p className="eyebrow text-accent">
             The provenance chain
           </p>
-          <p className="mt-4 text-[15px] leading-relaxed">
+          <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed">
             Every extracted fact carries a verified quote. If the quote cannot be
             matched against the source text, the fact is not shown as confirmed.
           </p>
-          <ol className="mt-6 flex flex-col gap-2 font-mono text-[11px] text-muted">
+          <ol className="mt-7 flex flex-col gap-2 font-mono text-[11.5px] text-ink-2">
             {[
               'document',
               'page + word boxes',
@@ -128,7 +128,7 @@ export default function LoginPage() {
               'task',
             ].map((step, index) => (
               <li key={step} className="flex items-center gap-2">
-                <span className="w-5 text-faint">{String(index + 1).padStart(2, '0')}</span>
+                <span className="w-5 text-ink-4">{String(index + 1).padStart(2, '0')}</span>
                 <span className={index === 2 || index === 3 ? 'text-accent' : undefined}>
                   {step}
                 </span>
