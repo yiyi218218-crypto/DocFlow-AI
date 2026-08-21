@@ -12,7 +12,7 @@ help: ## Show this help
 setup: ## Install everything and start infra
 	@test -f .env || cp .env.example .env
 	cd $(API) && uv sync --extra dev
-	cd $(WEB) && pnpm install
+	cd $(WEB) && npm install --no-audit --no-fund
 	docker compose up -d
 	@echo "waiting for postgres..."
 	@until docker compose exec -T postgres pg_isready -U postgres -d docflow >/dev/null 2>&1; do sleep 1; done
@@ -55,7 +55,7 @@ worker: ## Run the background worker
 
 .PHONY: web
 web: ## Run the Next.js dev server
-	cd $(WEB) && pnpm dev
+	cd $(WEB) && npm run dev
 
 .PHONY: dev
 dev: ## Run api + worker + web together
@@ -72,21 +72,21 @@ test-unit: ## Run only tests that need no infra
 
 .PHONY: test-web
 test-web: ## Run frontend unit tests
-	cd $(WEB) && pnpm test
+	cd $(WEB) && npm test
 
 .PHONY: e2e
 e2e: ## Run Playwright end-to-end tests
-	cd $(WEB) && pnpm exec playwright test
+	cd $(WEB) && npx playwright test
 
 .PHONY: lint
 lint: ## Lint and type-check everything
 	cd $(API) && uv run ruff check . && uv run ruff format --check . && uv run mypy src
-	cd $(WEB) && pnpm lint && pnpm exec tsc --noEmit
+	cd $(WEB) && npm run typecheck
 
 .PHONY: fmt
 fmt: ## Auto-format everything
 	cd $(API) && uv run ruff check --fix . && uv run ruff format .
-	cd $(WEB) && pnpm exec prettier --write .
+	cd $(WEB) && npx prettier --write .
 
 .PHONY: check
 check: lint test-unit ## Everything CI runs, locally

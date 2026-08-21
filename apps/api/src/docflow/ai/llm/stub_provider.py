@@ -33,10 +33,31 @@ from docflow.ai.llm.pricing import estimate_tokens
 from docflow.ai.normalization.bangla import detect_language
 
 _DOCUMENT_BLOCK = re.compile(r"<document[^>]*>(.*?)</document[^>]*>", re.DOTALL)
-_SENTENCE = re.compile(r"[^.।\n]+[.।]?")
+# Two kinds of newline in PDF text, and they mean different things:
+#   * a single \n is a line wrap inside a sentence — folding it is required, or
+#     "…submitted by\n15 September 2026." splits into a fragment with the cue and
+#     a fragment with the date, and neither reads as a deadline;
+#   * a blank line is a real paragraph boundary — folding it merges the header
+#     block into the following sentence, so the first date found is the
+#     publication date rather than the actual deadline.
+# So: split on blank lines first, fold single newlines within each paragraph.
+_SENTENCE = re.compile(r"[^.।]+[.।]?")
+_PARAGRAPH = re.compile(r"\n\s*\n")
+_LINEWRAP = re.compile(r"\s*\n\s*")
 
 # Cues that mark a sentence as carrying a deadline, a requirement or an action.
-_DEADLINE_CUES = ("deadline", "last date", "by ", "submit", "due", "শেষ তারিখ", "সময়সীমা")
+_DEADLINE_CUES = (
+    "deadline",
+    "last date",
+    "by ",
+    "submit",
+    "due",
+    "closes",
+    "closing",
+    "no later than",
+    "শেষ তারিখ",
+    "সময়সীমা",
+)
 _REQUIREMENT_CUES = (
     "required",
     "must",
@@ -134,7 +155,13 @@ class StubProvider:
 
     @staticmethod
     def _sentences(text: str) -> list[str]:
-        return [s.strip() for s in _SENTENCE.findall(text) if len(s.strip()) >= 20]
+        sentences: list[str] = []
+        for paragraph in _PARAGRAPH.split(text):
+            flattened = _LINEWRAP.sub(" ", paragraph)
+            sentences.extend(
+                s.strip() for s in _SENTENCE.findall(flattened) if len(s.strip()) >= 20
+            )
+        return sentences
 
     @staticmethod
     def _summarize(text: str) -> str:

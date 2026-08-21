@@ -134,7 +134,15 @@ def _parse_page(page: pymupdf.Page, page_number: int) -> ParsedPage:
     words: list[Word] = []
     offset = 0
     previous_line: tuple[int, int] | None = None
+    previous_bottom: float | None = None
     line_counter = -1
+
+    # Paragraph breaks are inferred from vertical gaps and emitted as a blank
+    # line. Without this the page text is one unbroken run of single newlines,
+    # and anything downstream that reasons about sentences (chunk section
+    # detection, extraction windows) silently merges a header block into the
+    # sentence that follows it.
+    paragraph_gap = _paragraph_gap_threshold(raw_words)
 
     for x0, y0, x1, y1, token, block_no, line_no, _word_no in raw_words:
         if not token:
@@ -144,12 +152,16 @@ def _parse_page(page: pymupdf.Page, page_number: int) -> ParsedPage:
         if line_key != previous_line:
             line_counter += 1
             if previous_line is not None:
-                text_parts.append("\n")
-                offset += 1
+                gap = y0 - previous_bottom if previous_bottom is not None else 0.0
+                separator = "\n\n" if gap > paragraph_gap else "\n"
+                text_parts.append(separator)
+                offset += len(separator)
             previous_line = line_key
+            previous_bottom = y1
         elif text_parts:
             text_parts.append(" ")
             offset += 1
+            previous_bottom = max(previous_bottom or y1, y1)
 
         rect = pymupdf.Rect(x0, y0, x1, y1) * matrix
         words.append(
@@ -180,6 +192,52 @@ def _parse_page(page: pymupdf.Page, page_number: int) -> ParsedPage:
         coverage=text_map.coverage,
         garbage_ratio=garbage_ratio(text),
     )
+
+
+def _paragraph_gap_threshold(raw_words: list) -> float:  # type: ignore[type-arg]
+    """Vertical gap above which a line break is a paragraph break.
+
+    Derived from the page's own geometry rather than a fixed multiple of font
+    size, because the two are not proportional. Measured on a real A4 page at
+    10.5pt: consecutive lines inside a paragraph are 0.8 units apart while a
+    paragraph break is 16 units — a 20x difference that a naive
+    "1.6 x glyph height" rule (23 units) misses entirely.
+
+    So: a robust "normal gap" baseline from the page's own line spacing, plus a
+    margin. Percentiles throughout, so one oversized heading does not move it.
+    """
+    lines: dict[tuple[int, int], list[float]] = {}
+    for _x0, y0, _x1, y1, token, block_no, line_no, _word_no in raw_words:
+        if not token:
+            continue
+        key = (block_no, line_no)
+        if key in lines:
+            lines[key][0] = min(lines[key][0], y0)
+            lines[key][1] = max(lines[key][1], y1)
+        else:
+            lines[key] = [y0, y1]
+
+    if len(lines) < 3:
+        return float("inf")  # too little structure to infer paragraphs
+
+    ordered = sorted(lines.values(), key=lambda v: v[0])
+    gaps = sorted(ordered[i][0] - ordered[i - 1][1] for i in range(1, len(ordered)))
+    heights = sorted(top - bottom for bottom, top in ordered if top > bottom)
+    if not gaps or not heights:
+        return float("inf")
+
+    # 25th percentile, not the median. On a page whose paragraphs are mostly one
+    # or two lines long, half the gaps ARE paragraph gaps, so the median lands
+    # above the break and nothing is detected. At least a quarter of gaps on any
+    # real page are intra-paragraph, so p25 is a reliable "normal" baseline.
+    baseline = gaps[len(gaps) // 4]
+    upper = gaps[(len(gaps) * 3) // 4]
+    median_height = heights[len(heights) // 2]
+
+    # Half the observed spread, floored at half a line height so a page with
+    # uniform spacing does not get spurious breaks from tiny variations.
+    margin = max(0.5 * median_height, 0.5 * (upper - baseline))
+    return baseline + margin
 
 
 def render_page(data: bytes, page_number: int, *, dpi: int = 150) -> bytes:

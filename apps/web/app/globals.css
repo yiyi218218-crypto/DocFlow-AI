@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+
+/* Design tokens — docs/40-frontend.md §14.4.
+   Borders not shadows. One accent. No gradients. Dense. */
+@theme {
+  --color-bg: oklch(0.99 0 0);
+  --color-surface: oklch(1 0 0);
+  --color-surface-2: oklch(0.975 0.002 260);
+  --color-border: oklch(0.92 0.004 260);
+  --color-border-strong: oklch(0.86 0.006 260);
+  --color-fg: oklch(0.22 0.01 260);
+  --color-muted: oklch(0.55 0.01 260);
+  --color-faint: oklch(0.68 0.008 260);
+  --color-accent: oklch(0.58 0.19 264);
+  --color-accent-soft: oklch(0.95 0.03 264);
+
+  --color-high: oklch(0.55 0.14 150);
+  --color-medium: oklch(0.62 0.14 75);
+  --color-low: oklch(0.6 0.02 260);
+  --color-danger: oklch(0.55 0.19 25);
+
+  /* The citation highlight. Also the artifact accent — the product's colour
+     is literally the colour of the thing it does. */
+  --color-highlight: oklch(0.88 0.16 95);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-bangla: 'Noto Sans Bengali', var(--font-sans);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  .dark {
+    --color-bg: oklch(0.16 0.008 260);
+    --color-surface: oklch(0.19 0.009 260);
+    --color-surface-2: oklch(0.23 0.01 260);
+    --color-border: oklch(0.28 0.012 260);
+    --color-border-strong: oklch(0.36 0.014 260);
+    --color-fg: oklch(0.93 0.004 260);
+    --color-muted: oklch(0.68 0.01 260);
+    --color-faint: oklch(0.52 0.01 260);
+    --color-accent: oklch(0.72 0.16 264);
+    --color-accent-soft: oklch(0.28 0.06 264);
+    --color-high: oklch(0.72 0.15 150);
+    --color-medium: oklch(0.78 0.14 75);
+    --color-low: oklch(0.6 0.02 260);
+    --color-danger: oklch(0.68 0.17 25);
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Bengali conjuncts need vertical room or they collide. */
+  [lang='bn'],
+  .bangla {
+    font-family: var(--font-bangla);
+    line-height: 1.75;
+  }
+
+  ::selection {
+    background: var(--color-accent-soft);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* The one deliberate flourish: it teaches the user what just happened. */
+@keyframes citation-pulse {
+  0% {
+    background-color: color-mix(in oklch, var(--color-highlight) 78%, transparent);
+    outline-color: var(--color-accent);
+  }
+  100% {
+    background-color: color-mix(in oklch, var(--color-highlight) 40%, transparent);
+    outline-color: transparent;
+  }
+}
+
+.citation-rect {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+  outline: 2px solid transparent;
+  background-color: color-mix(in oklch, var(--color-highlight) 40%, transparent);
+  mix-blend-mode: multiply;
+}
+
+.dark .citation-rect {
+  mix-blend-mode: screen;
+}
+
+.citation-rect--active {
+  animation: citation-pulse 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

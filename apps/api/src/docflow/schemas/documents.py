@@ -44,6 +44,7 @@ class DocumentSummary(APIModel):
     document_type: DocumentType | None = None
     status: DocumentStatus
     error_code: str | None = None
+    error_detail: str | None = None
     security_flags: list[str] = Field(default_factory=list)
     created_at: datetime
     processing_completed_at: datetime | None = None

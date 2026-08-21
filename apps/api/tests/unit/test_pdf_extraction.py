@@ -254,3 +254,52 @@ def test_encrypted_pdf_fails_with_an_actionable_message() -> None:
 def test_page_limit_is_enforced() -> None:
     with pytest.raises(TooManyPages):
         parse_pdf(make_pdf(pages=5), max_pages=3)
+
+
+# --------------------------------------------------------------------------
+# paragraph structure
+# --------------------------------------------------------------------------
+
+
+def test_paragraph_breaks_are_preserved() -> None:
+    """A blank line means something; a line wrap does not.
+
+    Without this distinction the page text is one unbroken run of single
+    newlines, and anything reasoning about sentences merges a document's header
+    block into the sentence that follows it — which is how a publication date
+    gets extracted as the submission deadline.
+
+    Measured on a real A4 page at 10.5pt: gaps inside a paragraph are ~0.8
+    units, paragraph breaks ~16. The threshold is derived from those numbers per
+    page rather than from a multiple of font size, which does not track them.
+    """
+    body = (
+        "University of Dhaka\n"
+        "Office of the Registrar\n"
+        "\n"
+        "Published on 1 August 2026\n"
+        "\n"
+        "Applications must be submitted by\n"
+        "15 September 2026 at 5:00 PM."
+    )
+    doc = pymupdf.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_textbox(pymupdf.Rect(50, 55, 545, 790), body, fontsize=10.5, lineheight=1.35)
+    pdf = doc.tobytes()
+    doc.close()
+
+    text = parse_pdf(pdf).pages[0].text
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+
+    assert len(paragraphs) == 3, f"expected 3 paragraphs, got {len(paragraphs)}: {paragraphs}"
+    # The wrapped sentence stays whole rather than being split at the line break.
+    assert "submitted by" in paragraphs[2]
+    assert "15 September 2026" in paragraphs[2]
+    # The header does not bleed into the deadline sentence.
+    assert "1 August 2026" not in paragraphs[2]
+
+
+def test_single_line_page_has_no_spurious_paragraph_breaks() -> None:
+    """Too little structure to infer paragraphs must mean none, not all."""
+    text = parse_pdf(make_pdf()).pages[0].text
+    assert "\n\n" not in text

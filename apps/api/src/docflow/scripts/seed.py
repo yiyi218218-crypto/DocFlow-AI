@@ -170,9 +170,7 @@ async def ensure_demo_account() -> tuple[uuid.UUID, uuid.UUID]:
             session.add(workspace)
             await session.flush()
             session.add(
-                Membership(
-                    workspace_id=workspace.id, user_id=user.id, role=WorkspaceRole.OWNER
-                )
+                Membership(workspace_id=workspace.id, user_id=user.id, role=WorkspaceRole.OWNER)
             )
 
         return user.id, workspace.id
@@ -317,10 +315,10 @@ async def main() -> None:
     tasks = await seed_tasks(workspace_id, user_id)
 
     logger.info("seed.completed", documents=processed, tasks=tasks)
-    print()  # noqa: T201 - this is a CLI
-    print(f"  Demo workspace ready: {processed} documents, {tasks} generated tasks")  # noqa: T201
-    print(f"  Sign in with  {DEMO_EMAIL}  /  {DEMO_PASSWORD}")  # noqa: T201
-    print()  # noqa: T201
+    print()
+    print(f"  Demo workspace ready: {processed} documents, {tasks} generated tasks")
+    print(f"  Sign in with  {DEMO_EMAIL}  /  {DEMO_PASSWORD}")
+    print()
 
 
 if __name__ == "__main__":
