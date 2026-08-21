@@ -40,7 +40,9 @@ class User(Base, TimestampMixin):
     avatar_url: Mapped[str | None] = mapped_column(Text)
 
     email_verified_at: Mapped[datetime | None]
-    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Dhaka", server_default="Asia/Dhaka")
+    timezone: Mapped[str] = mapped_column(
+        String(64), default="Asia/Dhaka", server_default="Asia/Dhaka"
+    )
     locale: Mapped[str] = mapped_column(String(8), default="en", server_default="en")
 
     oauth_provider: Mapped[str | None] = mapped_column(String(32))
@@ -65,7 +67,9 @@ class User(Base, TimestampMixin):
 
     @property
     def is_locked(self) -> bool:
-        return self.locked_until is not None and self.locked_until > datetime.now(self.locked_until.tzinfo)
+        return self.locked_until is not None and self.locked_until > datetime.now(
+            self.locked_until.tzinfo
+        )
 
 
 class Workspace(Base, TimestampMixin, SoftDeleteMixin):
@@ -76,7 +80,9 @@ class Workspace(Base, TimestampMixin, SoftDeleteMixin):
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     owner_id: Mapped[uuid.UUID] = uuid_fk("users.id", ondelete="RESTRICT")
 
-    timezone: Mapped[str] = mapped_column(String(64), default="Asia/Dhaka", server_default="Asia/Dhaka")
+    timezone: Mapped[str] = mapped_column(
+        String(64), default="Asia/Dhaka", server_default="Asia/Dhaka"
+    )
     plan: Mapped[str] = mapped_column(String(32), default="free", server_default="free")
 
     # Feature flags and per-workspace overrides live here rather than in a

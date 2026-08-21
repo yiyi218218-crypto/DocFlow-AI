@@ -87,7 +87,9 @@ class Document(Base, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin):
     language: Mapped[Language] = mapped_column(
         pg_enum(Language, "language"), default=Language.UNKNOWN, server_default="unknown"
     )
-    document_type: Mapped[DocumentType | None] = mapped_column(pg_enum(DocumentType, "document_type"))
+    document_type: Mapped[DocumentType | None] = mapped_column(
+        pg_enum(DocumentType, "document_type")
+    )
 
     title: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
@@ -166,7 +168,9 @@ class DocumentStage(Base, WorkspaceScopedMixin):
 
     id: Mapped[uuid.UUID] = uuid_pk()
     document_id: Mapped[uuid.UUID] = uuid_fk("documents.id")
-    stage: Mapped[PipelineStage] = mapped_column(pg_enum(PipelineStage, "pipeline_stage"), nullable=False)
+    stage: Mapped[PipelineStage] = mapped_column(
+        pg_enum(PipelineStage, "pipeline_stage"), nullable=False
+    )
     status: Mapped[StageStatus] = mapped_column(
         pg_enum(StageStatus, "stage_status"),
         default=StageStatus.PENDING,

@@ -100,18 +100,16 @@ async def tenant_session(
     user_id: uuid.UUID | str | None = None,
 ) -> AsyncIterator[AsyncSession]:
     """A transaction with tenant context bound. The only way workers touch tenant data."""
-    async with SessionFactory() as session:
-        async with session.begin():
-            await set_tenant_context(session, workspace_id, user_id)
-            yield session
+    async with SessionFactory() as session, session.begin():
+        await set_tenant_context(session, workspace_id, user_id)
+        yield session
 
 
 @asynccontextmanager
 async def system_session() -> AsyncIterator[AsyncSession]:
     """Cross-tenant access for cron jobs. Deliberately separate and rarely used."""
-    async with SessionFactory() as session:
-        async with session.begin():
-            yield session
+    async with SessionFactory() as session, session.begin():
+        yield session
 
 
 async def check_database() -> bool:
@@ -119,7 +117,7 @@ async def check_database() -> bool:
         async with SessionFactory() as session:
             await session.execute(text("SELECT 1"))
         return True
-    except Exception:  # noqa: BLE001 — health check must never raise
+    except Exception:
         return False
 
 

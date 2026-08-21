@@ -83,10 +83,7 @@ async def tenants(admin_session: AsyncSession) -> AsyncIterator[TenantFixture]:
         (fx.user_b, fx.ws_b, fx.doc_b, fx.task_b, "b"),
     ):
         await admin_session.execute(
-            text(
-                "INSERT INTO users (id, email, full_name) "
-                "VALUES (:id, :email, :name)"
-            ),
+            text("INSERT INTO users (id, email, full_name) VALUES (:id, :email, :name)"),
             {"id": user, "email": f"{tag}-{suffix}@example.test", "name": f"User {tag.upper()}"},
         )
         await admin_session.execute(
@@ -98,8 +95,7 @@ async def tenants(admin_session: AsyncSession) -> AsyncIterator[TenantFixture]:
         )
         await admin_session.execute(
             text(
-                "INSERT INTO memberships (workspace_id, user_id, role) "
-                "VALUES (:ws, :user, 'owner')"
+                "INSERT INTO memberships (workspace_id, user_id, role) VALUES (:ws, :user, 'owner')"
             ),
             {"ws": ws, "user": user},
         )
@@ -148,9 +144,8 @@ async def as_tenant(app_session_factory):  # type: ignore[no-untyped-def]
 
     @asynccontextmanager
     async def _scoped(workspace_id: uuid.UUID | str | None, user_id: uuid.UUID | None = None):  # type: ignore[no-untyped-def]
-        async with app_session_factory() as session:
-            async with session.begin():
-                await set_tenant_context(session, workspace_id, user_id)
-                yield session
+        async with app_session_factory() as session, session.begin():
+            await set_tenant_context(session, workspace_id, user_id)
+            yield session
 
     return _scoped

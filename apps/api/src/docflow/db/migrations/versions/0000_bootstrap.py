@@ -34,7 +34,7 @@ def upgrade() -> None:
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
     op.execute("CREATE EXTENSION IF NOT EXISTS citext")
 
-    # Postgres 18 ships uuidv7() natively; this shim covers 14–17.
+    # Postgres 18 ships uuidv7() natively; this shim covers 14 through 17.
     # Built on gen_random_uuid(), which is core since PG13 — deliberately NOT on
     # pgcrypto's gen_random_bytes(), which many managed providers do not enable.
     op.execute(

@@ -34,9 +34,7 @@ EXTENSION_TABLES = {"vector", "spatial_ref_sys"}
 
 
 def include_object(obj, name, type_, reflected, compare_to):  # type: ignore[no-untyped-def]
-    if type_ == "table" and name in EXTENSION_TABLES:
-        return False
-    return True
+    return not (type_ == "table" and name in EXTENSION_TABLES)
 
 
 def render_item(type_, obj, autogen_context):  # type: ignore[no-untyped-def]

@@ -38,7 +38,9 @@ def uuid_pk() -> Mapped[uuid.UUID]:
     )
 
 
-def uuid_fk(target: str, *, ondelete: str = "CASCADE", nullable: bool = False, index: bool = True) -> Any:
+def uuid_fk(
+    target: str, *, ondelete: str = "CASCADE", nullable: bool = False, index: bool = True
+) -> Any:
     return mapped_column(
         UUID(as_uuid=True),
         ForeignKey(target, ondelete=ondelete),

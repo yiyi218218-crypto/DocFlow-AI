@@ -68,7 +68,7 @@ def tenant_scoped_tables() -> list[str]:
     """
     return sorted(
         model.__tablename__
-        for model in Base.registry._class_registry.values()  # noqa: SLF001
+        for model in Base.registry._class_registry.values()
         if isinstance(model, type)
         and issubclass(model, WorkspaceScopedMixin)
         and hasattr(model, "__tablename__")

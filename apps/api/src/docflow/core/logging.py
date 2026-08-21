@@ -59,7 +59,9 @@ def _bind_context(_logger: Any, _name: str, event_dict: dict[str, Any]) -> dict[
     return event_dict
 
 
-def configure_logging(*, level: str = "INFO", json_output: bool = True, service: str = "api") -> None:
+def configure_logging(
+    *, level: str = "INFO", json_output: bool = True, service: str = "api"
+) -> None:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level.upper())
     for noisy in ("uvicorn.access", "botocore", "boto3", "urllib3", "httpx", "asyncio"):
         logging.getLogger(noisy).setLevel(logging.WARNING)

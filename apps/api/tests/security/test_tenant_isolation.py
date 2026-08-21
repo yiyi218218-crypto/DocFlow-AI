@@ -56,7 +56,9 @@ async def test_rls_is_enabled(admin_session: AsyncSession, table: str) -> None:
 @pytest.mark.parametrize("table", TENANT_TABLES)
 async def test_isolation_policy_exists(admin_session: AsyncSession, table: str) -> None:
     count = await admin_session.scalar(
-        text("SELECT count(*) FROM pg_policies WHERE tablename = :t AND policyname = 'tenant_isolation'"),
+        text(
+            "SELECT count(*) FROM pg_policies WHERE tablename = :t AND policyname = 'tenant_isolation'"
+        ),
         {"t": table},
     )
     assert count == 1, f"{table} has no tenant_isolation policy"
@@ -115,9 +117,7 @@ async def test_cannot_update_other_tenant(as_tenant, tenants) -> None:
 
 async def test_cannot_delete_other_tenant(as_tenant, tenants) -> None:
     async with as_tenant(tenants.ws_a) as s:
-        result = await s.execute(
-            text("DELETE FROM tasks WHERE id = :id"), {"id": tenants.task_b}
-        )
+        result = await s.execute(text("DELETE FROM tasks WHERE id = :id"), {"id": tenants.task_b})
         assert result.rowcount == 0
 
 
