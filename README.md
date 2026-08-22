@@ -168,7 +168,6 @@ marketing.
 | [40-frontend.md](docs/40-frontend.md) | Frontend architecture, viewer deep-dive |
 | [50-security-ops.md](docs/50-security-ops.md) | 20-threat model, observability, testing, CI/CD |
 | [60-delivery.md](docs/60-delivery.md) | Repo structure, phases, hackathon strategy, risks |
-| [prompt.md](prompt.md) | Frontend implementation brief |
 
 ## Stack
 
