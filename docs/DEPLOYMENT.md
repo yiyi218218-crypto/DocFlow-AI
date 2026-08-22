@@ -96,6 +96,14 @@ Required environment variables:
 | `STORAGE_BACKEND` | `postgres` |
 | `WORKER_MODE` | `inline` |
 | `ENVIRONMENT` | `production` |
+| `APP_BASE_URL` | the Vercel URL — password-reset links are built from it |
+
+Optional:
+
+| Key | Value |
+|---|---|
+| `RESEND_API_KEY` | a [Resend](https://resend.com) key. Without it, reset emails are written to the Render log instead of being sent — the flow still completes, but only for someone who can read the log. |
+| `EMAIL_FROM` | defaults to Resend's shared `onboarding@resend.dev`, which only delivers to the account owner. Set a verified domain to email anyone else. |
 
 Model routing and cost caps are in [`render.yaml`](../render.yaml); the values
 come from the benchmark in [EVALUATION.md](EVALUATION.md) §6.
@@ -111,6 +119,18 @@ cd apps/web
 vercel link --project docflow-ai
 vercel env add API_INTERNAL_URL production   # https://<your-api>.onrender.com
 vercel deploy --prod
+```
+
+Set the project's **Root Directory** to `apps/web`. Without it, `vercel deploy`
+from this directory still works — but every git-push-triggered build runs from
+the repo root, finds no `next` dependency, and fails with "No Next.js version
+detected". The result is a project that looks connected to GitHub and silently
+only ever ships what someone deploys by hand:
+
+```bash
+curl -X PATCH "https://api.vercel.com/v9/projects/<project-id>?teamId=<team-id>" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"rootDirectory":"apps/web"}'
 ```
 
 `next.config.ts` rewrites `/api/v1/*` to that URL, so the browser only ever
