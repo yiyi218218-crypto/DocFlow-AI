@@ -74,19 +74,35 @@ export default function DocumentPage() {
 
   const facts = useMemo(() => data?.facts ?? [], [data]);
 
-  // Restore the highlight from the URL, so a shared link opens on the fact.
+  // Adopt the fact from the URL — but ONLY when nothing is selected yet.
+  //
+  // The URL is a mirror of the selection, not a second source of truth. Two-way
+  // binding here is a real bug, not a style question: clicking fact B updates
+  // the store immediately while `searchParams` still reads fact A for a render
+  // or two, so an unguarded restore calls focusFact(A) and yanks the viewer
+  // back. Measured before this guard: scrollTop went 0 → 26 → 0 on a single
+  // click, landing on A while B was the active card.
+  //
+  // Gating on "nothing selected" still covers what the URL is for — deep links
+  // and reloads — because router.replace writes no history entry, so there is
+  // no back/forward navigation between facts to honour.
   useEffect(() => {
+    // Falsy, not `!== null`: the selector is `activeHighlight?.factId`, which
+    // yields undefined when nothing is selected. Comparing against null made
+    // this return early every time and broke deep links entirely.
+    if (activeFactId || facts.length === 0) return;
+
     const factId = searchParams.get('fact');
-    if (!factId || facts.length === 0 || activeFactId === factId) return;
+    if (!factId) return;
+
     const fact = facts.find((f) => f.id === factId);
-    if (fact) {
-      focusFact({ factId: fact.id, page: fact.source_page, rects: fact.source_rects });
-      // A ?fact= URL is a link *to a highlight*. Set the pane here rather than
-      // in a useState initializer: that runs before useSearchParams is
-      // populated, so it would lock to the list and hide the thing the link
-      // points at.
-      setMobilePane('document');
-    }
+    if (!fact) return;
+
+    focusFact({ factId: fact.id, page: fact.source_page, rects: fact.source_rects });
+    // A ?fact= URL is a link *to a highlight*, so open the document. Set here
+    // rather than in a useState initializer: that runs before useSearchParams
+    // is populated and would lock to the list, hiding what the link points at.
+    setMobilePane('document');
   }, [searchParams, facts, activeFactId, focusFact]);
 
   // Mirror the active fact back into the URL.

@@ -160,3 +160,51 @@ test('the source is reachable on a phone', async ({ page, isMobile }) => {
   expect(pageWidth).toBeGreaterThan(viewport * 0.8);
   expect(pageWidth).toBeLessThanOrEqual(viewport);
 });
+
+test('switching between facts does not bounce back to the previous one', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'the split viewer scroller only exists on desktop');
+
+  await signIn(page);
+  await page.locator('[data-filename="du-admission-circular-2026.pdf"]').click();
+  await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
+  await expect(page.getByRole('heading', { name: /required/i })).toBeVisible();
+
+  const scroller = page.locator('div.overflow-y-auto').first();
+  const cards = page.locator('aside button');
+
+  // Settle on one fact, then jump to a much later one.
+  await cards.nth(0).click();
+  await page.waitForTimeout(1200);
+  const first = await scroller.evaluate((el) => Math.round(el.scrollTop));
+
+  await cards.nth(4).click();
+
+  // Sample while it animates. The URL mirrors the selection one render late,
+  // so an unguarded restore effect reads the STALE fact and drags the viewer
+  // back — which shows up as the scroll returning to where it started.
+  const samples: number[] = [];
+  for (let i = 0; i < 14; i++) {
+    await page.waitForTimeout(110);
+    samples.push(await scroller.evaluate((el) => Math.round(el.scrollTop)));
+  }
+
+  const settled = samples.at(-1)!;
+  expect(Math.abs(settled - first)).toBeGreaterThan(8);
+
+  // And it must not reverse direction on the way there.
+  let reversals = 0;
+  for (let i = 2; i < samples.length; i++) {
+    const before = samples[i - 1]! - samples[i - 2]!;
+    const after = samples[i]! - samples[i - 1]!;
+    if (Math.abs(before) > 3 && Math.abs(after) > 3 && Math.sign(before) !== Math.sign(after)) {
+      reversals += 1;
+    }
+  }
+  expect(reversals).toBe(0);
+
+  // The card the user clicked is the one that stayed selected.
+  await expect(cards.nth(4)).toHaveAttribute('aria-current', 'true');
+});
