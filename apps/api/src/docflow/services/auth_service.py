@@ -25,6 +25,7 @@ from docflow.core.errors import (
 from docflow.core.logging import get_logger
 from docflow.core.security import (
     create_access_token,
+    create_password_reset_token,
     create_refresh_token,
     decode_token,
     dummy_verify,
@@ -32,6 +33,7 @@ from docflow.core.security import (
     hash_secret,
     needs_rehash,
     verify_password,
+    verify_password_reset_token,
 )
 from docflow.models.enums import WorkspaceRole
 from docflow.models.identity import Membership, RefreshToken, User, Workspace
@@ -321,3 +323,61 @@ async def _unique_slug(session: AsyncSession, seed: str) -> str:
             return slug
         slug = f"{base}-{uuid.uuid4().hex[:6]}" if attempt else f"{base}-2"
     return f"{base}-{uuid.uuid4().hex[:10]}"
+
+
+# --- password reset -------------------------------------------------------
+
+
+async def begin_password_reset(session: AsyncSession, *, email: str) -> str | None:
+    """Create a reset link for `email`, or return None if there is no account.
+
+    The caller MUST respond identically either way. Whether an address is
+    registered is exactly what an enumeration probe is looking for (T14).
+    """
+    user = await session.scalar(select(User).where(User.email == email))
+    if user is None:
+        return None
+
+    token = create_password_reset_token(user.id, user.password_hash)
+    return f"{settings.app_base_url.rstrip('/')}/reset-password?token={token}"
+
+
+async def complete_password_reset(session: AsyncSession, *, token: str, new_password: str) -> User:
+    """Set a new password and end every existing session."""
+    payload = decode_token(token, "password_reset")
+    user = await session.scalar(select(User).where(User.id == uuid.UUID(payload["sub"])))
+    if user is None:
+        raise Unauthenticated("This reset link is no longer valid.")
+
+    # Re-verify against the CURRENT hash: this is what makes the link single-use.
+    verify_password_reset_token(token, user.password_hash)
+
+    user.password_hash = hash_password(new_password)
+    user.failed_login_count = 0
+    user.locked_until = None
+    if user.email_verified_at is None:
+        # Receiving the email proves control of the address.
+        user.email_verified_at = datetime.now(UTC)
+
+    # A reset is the remedy for a compromised account, so it has to log out
+    # everyone else — otherwise a thief keeps their session and the reset
+    # accomplishes nothing.
+    revoked = (
+        (
+            await session.execute(
+                select(RefreshToken).where(
+                    RefreshToken.user_id == user.id,
+                    RefreshToken.revoked_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    now = datetime.now(UTC)
+    for stored in revoked:
+        stored.revoked_at = now
+        stored.revoked_reason = "password_reset"
+
+    logger.info("auth.password_reset", user_id=str(user.id), sessions_revoked=len(revoked))
+    return user

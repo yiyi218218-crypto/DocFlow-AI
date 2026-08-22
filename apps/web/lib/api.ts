@@ -76,10 +76,12 @@ async function refreshSession(): Promise<boolean> {
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   retryOn401?: boolean;
+  /** Read headers off a successful response — used where a token is not in the body. */
+  onResponse?: (response: Response) => void;
 }
 
 export async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, retryOn401 = true, headers, ...rest } = options;
+  const { body, retryOn401 = true, headers, onResponse, ...rest } = options;
 
   const isFormData = body instanceof FormData;
   const requestHeaders: Record<string, string> = {
@@ -100,6 +102,8 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
       return apiFetch<T>(path, { ...options, retryOn401: false });
     }
   }
+
+  if (response.ok) onResponse?.(response);
 
   if (response.status === 204) {
     return undefined as T;
@@ -127,7 +131,12 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 // --- auth -----------------------------------------------------------------
 
 export interface SessionResponse {
-  user: { id: string; email: string; full_name: string | null; timezone: string };
+  user: {
+    id: string;
+    email: string;
+    full_name: string | null;
+    timezone: string;
+  };
   workspace: { id: string; name: string; slug: string };
   role: string;
   permissions: string[];
@@ -149,6 +158,12 @@ export async function register(
   return apiFetch<SessionResponse>('/api/v1/auth/register', {
     method: 'POST',
     body: { email, password, full_name: fullName },
+    // Register already issues a token — it just rides in a header instead of
+    // the body. Reading it here saves a second password hash through /login.
+    onResponse: (response) => {
+      const token = response.headers.get('X-Access-Token');
+      if (token) setAccessToken(token);
+    },
   });
 }
 
@@ -204,6 +219,23 @@ export async function loginWithGoogle(idToken: string): Promise<void> {
   const body = await apiFetch<{ access_token: string }>('/api/v1/auth/google', {
     method: 'POST',
     body: { id_token: idToken },
+  });
+  setAccessToken(body.access_token);
+}
+
+/** Ask for a reset link. Always succeeds, whether or not the account exists. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await apiFetch<{ detail: string }>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
+/** Set a new password from a reset link, and sign in with the result. */
+export async function completePasswordReset(token: string, password: string): Promise<void> {
+  const body = await apiFetch<{ access_token: string }>('/api/v1/auth/reset-password', {
+    method: 'POST',
+    body: { token, password },
   });
   setAccessToken(body.access_token);
 }

@@ -133,3 +133,32 @@ def hash_secret(value: str) -> str:
 
 def constant_time_compare(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode(), b.encode())
+
+
+# --- password reset -------------------------------------------------------
+
+
+def password_fingerprint(password_hash: str | None) -> str:
+    """A short digest of the credential a reset token is bound to.
+
+    Binding the token to the CURRENT password hash makes it single-use for
+    free: the moment the password changes the fingerprint no longer matches and
+    every outstanding link for that account is dead. No table, no cleanup job,
+    no window where a used link still works.
+
+    A Google-only account has no hash yet; it gets a stable placeholder so such
+    a user can still set a password.
+    """
+    return hashlib.sha256((password_hash or "no-password").encode()).hexdigest()[:16]
+
+
+def create_password_reset_token(user_id: uuid.UUID, password_hash: str | None) -> str:
+    return create_token(user_id, "password_reset", pw=password_fingerprint(password_hash))
+
+
+def verify_password_reset_token(token: str, password_hash: str | None) -> uuid.UUID:
+    """Return the user id, or raise if the link is spent, forged or expired."""
+    payload = decode_token(token, "password_reset")
+    if payload.get("pw") != password_fingerprint(password_hash):
+        raise Unauthenticated("This reset link has already been used.")
+    return uuid.UUID(payload["sub"])

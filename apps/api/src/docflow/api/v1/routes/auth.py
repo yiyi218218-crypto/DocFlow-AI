@@ -11,14 +11,18 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, Request, Response, status
+from sqlalchemy import select
 
 from docflow.api.v1.deps import CurrentUser, PlainSession, get_session
 from docflow.core.config import settings
 from docflow.core.errors import Unauthenticated
 from docflow.core.permissions import permissions_for
+from docflow.models.identity import User
 from docflow.schemas.auth import (
     GoogleSignInIn,
     LoginIn,
+    PasswordResetAccepted,
+    PasswordResetIn,
     PasswordResetRequestIn,
     RegisterIn,
     SessionOut,
@@ -27,6 +31,7 @@ from docflow.schemas.auth import (
     WorkspaceOut,
 )
 from docflow.services import auth_service
+from docflow.services.email import render_password_reset, send_email
 from docflow.services.google_auth import verify_id_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -197,12 +202,68 @@ async def me(
     )
 
 
-@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
-async def forgot_password(payload: PasswordResetRequestIn) -> dict[str, str]:
-    """Always 202, whether or not the account exists.
+@router.post(
+    "/forgot-password",
+    response_model=PasswordResetAccepted,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def forgot_password(
+    payload: PasswordResetRequestIn,
+    session: PlainSession,
+) -> PasswordResetAccepted:
+    """Send a reset link. Always 202, whether or not the account exists.
 
-    Any other behaviour turns this endpoint into an account-enumeration oracle
-    (T14). The email itself is sent by a background job.
+    Any other behaviour — a different status, a different message, even a
+    noticeably different response time — turns this into an account-enumeration
+    oracle (T14).
     """
-    _ = payload
-    return {"status": "accepted"}
+    reset_url = await auth_service.begin_password_reset(session, email=payload.email)
+
+    if reset_url is not None:
+        user = await session.scalar(select(User).where(User.email == payload.email))
+        subject, text, html = render_password_reset(
+            reset_url=reset_url, full_name=user.full_name if user else None
+        )
+        # When no provider is configured this writes the link to the log, which
+        # is how a local or free-tier deployment completes the flow.
+        await send_email(to=payload.email, subject=subject, text=text, html=html)
+
+    # One response, byte-identical either way.
+    #
+    # An earlier version returned the link in the body when no email provider
+    # was configured, to make local testing easy. That is an account-enumeration
+    # oracle: present for real addresses, absent for the rest, so anyone could
+    # test which emails are registered — and in any environment sharing the
+    # build, reset any account they could name. The convenience is not worth it;
+    # the link goes to the log instead.
+    return PasswordResetAccepted(
+        detail="If that address has an account, a reset link is on its way."
+    )
+
+
+@router.post("/reset-password", response_model=TokenOut)
+async def reset_password(
+    payload: PasswordResetIn,
+    request: Request,
+    response: Response,
+    session: PlainSession,
+) -> TokenOut:
+    """Set a new password and sign the user straight in.
+
+    Signing them in is deliberate: the alternative is bouncing someone who has
+    just proved control of the address back to a login form.
+    """
+    user = await auth_service.complete_password_reset(
+        session, token=payload.token, new_password=payload.password
+    )
+    workspace, _role = await auth_service.default_workspace(session, user)
+
+    access, refresh = await auth_service.issue_tokens(
+        session,
+        user,
+        workspace_id=workspace.id,
+        user_agent=request.headers.get("user-agent"),
+        ip_address=request.client.host if request.client else None,
+    )
+    _set_refresh_cookie(response, refresh)
+    return TokenOut(access_token=access, expires_in=settings.access_token_ttl_minutes * 60)

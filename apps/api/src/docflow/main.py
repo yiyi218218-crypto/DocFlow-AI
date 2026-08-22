@@ -117,6 +117,10 @@ def create_app() -> FastAPI:
             "RateLimit-Reset",
             "Retry-After",
             "ETag",
+            # Register hands back the first access token here rather than in the
+            # body. Without this the browser drops it and a brand-new account
+            # lands on a signed-out page.
+            "X-Access-Token",
         ],
         max_age=600,
     )

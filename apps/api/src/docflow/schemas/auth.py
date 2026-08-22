@@ -107,8 +107,22 @@ class PasswordResetRequestIn(BaseModel):
 
 
 class PasswordResetIn(BaseModel):
-    token: str
+    token: str = Field(..., min_length=16, max_length=4096)
     password: str = Field(..., min_length=MIN_PASSWORD_LENGTH, max_length=200)
+
+    _strength = field_validator("password")(RegisterIn._strength.__func__)  # type: ignore[attr-defined]
+
+
+class PasswordResetAccepted(BaseModel):
+    """Identical whether or not the account exists.
+
+    Deliberately carries no reset link: returning one for real addresses and not
+    for others is an account-enumeration oracle. With no email provider
+    configured the link is written to the log instead.
+    """
+
+    status: str = "accepted"
+    detail: str
 
 
 class WorkspaceCreateIn(BaseModel):

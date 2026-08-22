@@ -95,6 +95,13 @@ class Settings(BaseSettings):
     llm_timeout_seconds: int = 120
     llm_max_retries: int = 3
 
+    # --- email ------------------------------------------------------------
+    # Unset is a supported mode, not a broken one: the reset flow still works
+    # and the message is written to the log. See services/email.py.
+    resend_api_key: SecretStr | None = None
+    email_from: str = "DocFlow <onboarding@resend.dev>"
+    app_base_url: str = "http://localhost:3000"
+
     # --- cost controls ----------------------------------------------------
     max_cost_per_document_usd: float = 0.10
     daily_budget_per_workspace_usd: float = 0.25
