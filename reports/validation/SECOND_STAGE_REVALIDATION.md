@@ -11,7 +11,7 @@
 - The branch and commit still match the task brief.
 - At the start of this stage, the only existing worktree item was the untracked reports directory containing the prior baseline report. It was preserved. No user source edits were overwritten.
 - The checkout is a fork of A-K-M-Asifuzzaman/DocFlow-AI under the upstream MIT license. The upstream license and copyright text were left unchanged.
-- The local changes listed below are uncommitted review changes. No commit, push, merge, release, GitHub setting change, or other remote write was performed.
+- At the time this report was recorded, the local changes listed below were uncommitted review changes. No commit, push, merge, release, GitHub setting change, or other remote write had occurred at that time.
 - The local .env file was not opened or modified. Validation used explicit non-secret environment overrides; DEMO_MODE=true selected the Stub Provider, confirmed in logs.
 
 ## Environment
@@ -74,7 +74,7 @@ No feature rewrite or broad dependency version upgrade was made. The existing lo
 - Python code: apps/api/src/docflow/ai/embeddings/embedder.py, apps/api/src/docflow/ai/llm/client.py, apps/api/src/docflow/ai/normalization/dates.py, apps/api/src/docflow/api/v1/deps.py, apps/api/src/docflow/api/v1/routes/documents.py, apps/api/src/docflow/api/v1/routes/dashboard.py, apps/api/src/docflow/core/blobstore.py, apps/api/src/docflow/db/migrations/env.py, apps/api/src/docflow/documents/pdf.py, apps/api/src/docflow/models/enums.py, apps/api/src/docflow/pipeline/orchestrator.py, apps/api/src/docflow/services/document_service.py, apps/api/src/docflow/services/google_auth.py, apps/api/src/docflow/services/notification_service.py, and apps/api/tests/security/test_google_auth.py.
 - Runtime documentation: README.md, one factual demo document count correction (3 to 4).
 - Web tooling and tests: apps/web/package.json, apps/web/package-lock.json, apps/web/eslint.config.mjs, apps/web/vitest.config.ts, apps/web/tests/lib/utils.test.ts, and apps/web/tests/lib/types.test.ts.
-- git diff --check passed. All changes remain local and uncommitted.
+- git diff --check passed. At the time this report was recorded, all changes remained local and uncommitted.
 
 ## Stage decision
 

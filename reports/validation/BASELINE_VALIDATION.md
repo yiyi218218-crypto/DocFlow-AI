@@ -64,7 +64,7 @@ Therefore no promotional screenshots, `docs/PORTFOLIO.md`, portfolio README chan
 ## Cleanup and repository state
 
 - API, worker, frontend server, PostgreSQL, and Redis were stopped after validation. The isolated Compose network/containers were removed with docker compose down; the docflow-validation_postgres-data volume was intentionally preserved.
-- Final Git status: no source changes; only this validation report is new and uncommitted. The local .env, .venv, Node modules, and build artifacts are ignored.
+- Final Git status at baseline capture: no source changes; only this validation report was new and uncommitted. The local .env, .venv, Node modules, and build artifacts are ignored.
 
 
 ## Revalidation addendum — 2026-10-27
@@ -80,5 +80,5 @@ The initial baseline above records the state before this task's authorized Stage
 - README.md's seed command comment was corrected from 3 to 4 processed documents, matching the seed source and successful run.
 - MinIO/S3 and scanned/Bangla OCR remain unverified. OCR startup warnings were observed; the Bangla seed document produced no extracted facts without an OCR engine. No paid provider evaluation was run.
 - The local environment file was not read or modified. The new Compose volume was preserved. No commit or remote write occurred.
-- The checkout remains on portfolio/initial-validation at 7c584c939aa9cb1e778b662a4b29a9aab7d42881. Source and tooling changes are local and uncommitted. This report does not claim upstream code as original work.
+- At baseline capture, the checkout was on portfolio/initial-validation at 7c584c939aa9cb1e778b662a4b29a9aab7d42881. Subsequent source and tooling changes were not part of that baseline. This report does not claim upstream code as original work.
 - Per the task stop rule, no README rewrite, screenshots, profile plan, GitHub metadata edit, commit, or push was started.

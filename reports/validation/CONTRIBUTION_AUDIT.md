@@ -2,7 +2,7 @@
 
 **Reviewed:** 2026-10-27 (Asia/Shanghai)
 **Checkout:** `DocFlow-AI`, branch `portfolio/initial-validation`, HEAD `7c584c939aa9cb1e778b662a4b29a9aab7d42881`.
-**State:** Local changes remain uncommitted; no remote write or staging was performed.
+**State at audit capture:** Local changes were uncommitted; no remote write or staging had occurred at that time.
 
 ## A. Upstream project
 
@@ -55,7 +55,7 @@ The upstream MIT license and notice are preserved, but this report is not legal 
 - `apps/web/dbg.mjs:17` remains unchanged and tracked. Its `apiKey` field contains a Google API-key-shaped literal; this format match alone does not confirm a valid key, credential exposure, or leakage. The literal was not printed, logged, or copied into this report.
 - The application Firebase module reads `NEXT_PUBLIC_FIREBASE_API_KEY` and related settings from environment variables. Those process variables were unavailable for comparison, no matching key was found in other tracked application source, and no standard tracked Firebase project configuration file (`.firebaserc`, `firebase.json`, or Google service config) was found. `.env` was not read. Console-side project ownership, key validity, API restrictions, and application/referrer restrictions remain `UNVERIFIED`.
 - Node `v24.22.1` and npm `11.16.0` were checked. The prior QA results were not rerun; no additional tests were needed for this read-only security/lockfile review.
-- No files were staged; no commit, push, PR, cloud change, or remote-setting change was made.
+- At the time this audit was recorded, no files had been staged; no commit, push, PR, cloud change, or remote-setting change had been made.
 
 
 ## G. Full worktree change inventory — 2026-10-27
@@ -117,3 +117,8 @@ No changed or untracked file has a log, database, database dump, cache, or tempo
 ## H. Final review disposition
 
 The full file inventory is attributable to date correctness, type/lint cleanup, frontend test tooling, and portfolio documentation/evidence. The release gate remains `UNVERIFIED`: `apps/web/dbg.mjs:17`, the project-specificity of the external endpoint at `docs/DEPLOYMENT.md:92`, and the demo sign-in lines in the baseline README require private owner verification. `docs/DEPLOYMENT.md:64,66` are URI examples with placeholder components, not confirmed credentials. See the security limitations and commit readiness reports for scan scope and GitHub organization actions.
+
+
+## Publication update — 2026-10-27
+
+The reviewed portfolio update was committed and pushed to the public main branch as 68bf55b30b03b8624e3879e8b69d805a9b2e4c6c. This publication note does not change the historical test results above; they remain the local validation evidence captured on the stated run date. No tests were rerun as part of the push itself.
