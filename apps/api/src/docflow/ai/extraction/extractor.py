@@ -377,8 +377,11 @@ def _align_and_score(
         payload = best.model_dump(exclude={"kind", "source_quote", "source_page", "llm_confidence"})
 
         if best.kind is FactKind.DEADLINE:
+            date_text = best.raw_date_text
+            if best.time_of_day_text:
+                date_text = f"{date_text} {best.time_of_day_text}"
             normalized = normalize_date(
-                best.raw_date_text,
+                date_text,
                 reference_date=published_date,
             )
             payload["normalization_status"] = normalized.status.value

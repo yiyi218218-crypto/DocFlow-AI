@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -161,7 +161,10 @@ async def list_documents(
 async def get_document(
     session: AsyncSession, *, workspace_id: uuid.UUID, document_id: uuid.UUID
 ) -> Document:
-    document = await session.scalar(_base_query(workspace_id).where(Document.id == document_id))
+    document = cast(
+        Document | None,
+        await session.scalar(_base_query(workspace_id).where(Document.id == document_id)),
+    )
     if document is None:
         # 404 rather than 403 — a 403 confirms the id exists somewhere (T6).
         raise NotFound("Document not found.")

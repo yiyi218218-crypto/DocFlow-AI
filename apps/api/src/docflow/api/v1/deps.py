@@ -152,7 +152,7 @@ async def get_tenant_session(
     return session
 
 
-def require(permission: Permission):  # type: ignore[no-untyped-def]
+def require(permission: Permission):
     """Route dependency enforcing one permission.
 
     Usage: `dependencies=[Depends(require(Permission.DOCUMENT_UPLOAD))]`

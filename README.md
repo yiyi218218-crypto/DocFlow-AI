@@ -1,203 +1,196 @@
 # DocFlow AI
 
-> **Turn documents into decisions, deadlines, tasks and actions** — with every fact traceable to the exact line it came from.
+A document-intelligence workspace that turns uploaded PDFs into reviewable facts, deadlines, requirements, and follow-up tasks. Facts include a source quote and page reference so a reviewer can inspect the underlying document.
 
-[![CI](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-335%20passing-2F6B3D)](apps/api/tests)
-[![python](https://img.shields.io/badge/python-3.12-24466E)](apps/api/pyproject.toml)
-[![license](https://img.shields.io/badge/license-MIT-4A5568)](LICENSE)
+> This repository is a fork of [A-K-M-Asifuzzaman/DocFlow-AI](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI). The upstream project supplies the product implementation. This README distinguishes upstream capabilities from local changes in this checkout.
 
-![Clicking a deadline highlights its exact source span on the page](docs/images/viewer-citation.png)
+## Project overview
 
-*Click the deadline on the right; the source sentence highlights on the left. The card shows the
-normalized date, how long is left, **and** the raw text the document actually contained.*
+Document workflows often leave people to find a deadline, interpret a requirement, and remember the next action by reading a PDF manually. DocFlow provides a workspace for reviewing extracted information alongside its source page.
 
-The same thing on a **Bangla** circular — which reached the model through OCR, because its PDF text
-layer was corrupt (see [EVALUATION.md](docs/EVALUATION.md) §7):
+The screenshots below are from a locally running instance using the repository's seeded demo workspace. The demo uses the Stub Provider; it does not call a paid model or represent production usage.
 
-![A Bangla circular with its deadline highlighted and normalized](docs/images/viewer-bangla.png)
+### Workspace and task list
 
----
+![Locally running DocFlow workspace with seeded sample documents, deadlines, and tasks](docs/assets/03-workspace-date-fixed.png)
 
-## The problem with document AI
+### Citation review
 
-Most document AI stops at *summarize* and *chat*. The user still has to read the
-answer, work out what it means, and remember to act on it.
+![Locally running document viewer with the corrected September 15 deadline and matching source quote](docs/assets/04-citation-date-fixed.png)
 
-DocFlow extracts **typed, verified obligations** — deadlines with real dates,
-requirements with checkboxes, tasks with due dates — and refuses to show you a
-fact it cannot point to in the source.
+The seeded sample dates are fixed and appear overdue in these captures dated 2026-10-27. An earlier capture showed 16 September for a source deadline of 15 September. The date path was traced and corrected: the Stub Provider now preserves the explicit 5:00 PM, normalization receives the time, and the UI formats absolute deadline dates in the configured source normalization timezone (Asia/Dhaka). The updated citation view shows 15 September 2026, matching the source. General date interpretation still requires review when the source timezone is unknown or ambiguous.
 
-```
-Most document AI:   Document → Summary → Chat
-DocFlow:            Document → Understand → Extract → Decide → Act → Track
-```
+## Problem statement
 
-## The one thing that must be right
+Summaries alone do not make a document actionable. A user still needs to verify each statement, identify a date, and track the work that follows. DocFlow connects candidate facts to page-level source evidence and presents related tasks in the same workspace.
 
-> **The Provenance Chain**
-> `document → page → character span → bounding box → fact → task`
->
-> Every extracted fact carries a verified quote. If the quote cannot be matched
-> against the source text, the fact is **not** shown as confirmed.
+Citation verification checks whether an extracted quote can be aligned with source text. It does not establish that a normalized value, such as a date, is semantically correct.
 
-This is simultaneously the product, the trust model, the primary evaluation
-metric, and the anti-hallucination defense — a fabricated fact cannot produce a
-quote that fuzzy-matches real page text at ≥ 95, so **citation verification rate
-doubles as a hallucination metric that needs no judge model and no labels**.
+## Key features present in the codebase
 
-## Live
+- A Next.js and React workspace for documents, deadlines, tasks, and document review.
+- A FastAPI API for authentication, document handling, analysis, dashboard data, and blob access.
+- A PDF processing pipeline using PyMuPDF, with an optional OCR stage when an OCR engine is available.
+- Fact extraction through a provider abstraction, with Anthropic, OpenAI, and a deterministic Stub Provider implementation in the codebase.
+- Quote alignment and citation metadata that can be used to highlight source text in the viewer.
+- Asynchronous document jobs using Redis and ARQ, plus an inline processing mode.
+- PostgreSQL persistence with SQLAlchemy, Alembic migrations, tenant-scoped data, and pgvector-backed embeddings.
+- AI-generated tasks linked to source facts, with task status stored in the database.
+- A storage adapter with PostgreSQL blob storage and an S3-compatible implementation. Only the PostgreSQL blob store was validated in the recorded local run.
 
-| | |
-|---|---|
-| App | **https://docflow-ai-six.vercel.app** |
-| API | https://docflow-api-6a2w.onrender.com/health/ready |
-| Demo sign-in | `demo@docflow.ai` / `demo-workspace-2026` (or click **Open the demo**) |
-
-Free tier: the API spins down after ~15 minutes idle, so the first request can
-take 30–50s. Deployment details and the trade-offs behind it:
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-## Run it locally
-
-```bash
-git clone https://github.com/A-K-M-Asifuzzaman/DocFlow-AI.git
-cd DocFlow-AI
-make setup      # docker compose + migrations
-make seed       # 3 processed documents + 12 generated tasks
-make dev        # api + worker + web
-```
-
-**No API keys required.** With no provider key configured, a deterministic stub
-provider runs the whole pipeline offline — quotes lifted verbatim from the input,
-so span alignment, confidence scoring and citation verification all genuinely
-execute rather than being mocked out.
-
-Demo sign-in: `demo@docflow.ai` / `demo-workspace-2026`
+These are codebase capabilities; the limitations below describe which paths were actually verified.
 
 ## Architecture
 
-**[📐 All 12 diagrams →](docs/ARCHITECTURE.md)** — system, pipeline, OCR tiers,
-RAG routing, span alignment, injection defense, tenancy, deployment, CI, ER.
+The editable source is [docs/architecture.mmd](docs/architecture.mmd). The diagram reflects the current code paths and marks unvalidated alternatives separately.
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-sans-serif, system-ui, sans-serif','fontSize':'13px','lineColor':'#7C8798','primaryTextColor':'#ffffff'}}}%%
 flowchart LR
-    D["<b>Document</b><br/><i>normalized to<br/>canonical PDF</i>"]
-    P["<b>Page</b><br/><i>text + word boxes<br/>rotation-normalized</i>"]
-    C["<b>Char span</b><br/><i>rapidfuzz<br/>alignment</i>"]
-    R["<b>Rectangles</b><br/><i>normalized 0–1</i>"]
-    F["<b>Fact</b><br/><i>typed · confidence</i>"]
-    T["<b>Task</b><br/><i>due date<br/>+ reminder</i>"]
-    D --> P --> C --> R --> F --> T
-    T -. "click 'source'" .-> R
-    classDef step fill:#24466E,stroke:#16293F,color:#fff,stroke-width:1px
-    classDef key  fill:#A8641A,stroke:#6B3F10,color:#fff,stroke-width:2px
-    classDef out  fill:#2F6B3D,stroke:#1C4126,color:#fff,stroke-width:1px
-    class D,P,F step
-    class C,R key
-    class T out
+    U["User"] --> UI["Next.js 15 / React UI"]
+    UI -->|"same-origin /api/v1 rewrite"| API["FastAPI API"]
+
+    API --> DB[("PostgreSQL 16<br/>SQLAlchemy / Alembic<br/>workspace data, facts, tasks, stages, pgvector")]
+    API --> STORE["File storage adapter"]
+    STORE --> PGSTORE[("PostgreSQL blobstore<br/>validated locally")]
+    STORE -.-> S3["S3-compatible backend<br/>implemented; not validated"]
+
+    API --> QUEUE["Redis queue"]
+    QUEUE --> WORKER["ARQ worker"]
+    API -.-> INLINE["Inline processing mode<br/>alternative"]
+    WORKER --> PIPE["Document pipeline"]
+    INLINE --> PIPE
+
+    PIPE --> PDF["PDF normalization and parsing<br/>PyMuPDF"]
+    PDF --> OCR["Optional OCR stage<br/>engine unavailable in validation run"]
+    PDF --> EXTRACT["Fact and requirement extraction"]
+    OCR --> EXTRACT
+    EXTRACT --> PROVIDER["LLM provider interface"]
+    PROVIDER --> STUB["Stub provider<br/>demo path validated"]
+    PROVIDER -.-> PAID["Anthropic / OpenAI providers<br/>paid evaluation not run"]
+
+    EXTRACT --> ALIGN["Quote-to-source alignment"]
+    ALIGN --> FACTS["Quote-matched or flagged facts"]
+    FACTS --> TASKS["Source-linked tasks"]
+    FACTS --> DB
+    TASKS --> DB
+    WORKER --> DB
+    WORKER --> STORE
+    DB --> API
+    API --> UI
+    UI -->|"click citation"| PDF
 ```
 
-## Measured results
+## Technology stack
 
-Real numbers from real runs. Full methodology and caveats:
-**[docs/EVALUATION.md](docs/EVALUATION.md)**
+- Frontend: Next.js 15, React 19, TypeScript, Vitest, ESLint.
+- API and worker: Python 3.12, FastAPI, SQLAlchemy 2, Alembic, ARQ.
+- Data and queue: PostgreSQL 16, pgvector, Redis.
+- Document and AI integrations: PyMuPDF, optional pytesseract, Anthropic and OpenAI adapters, Stub Provider.
+- Local tooling: uv, npm, Docker Compose, pytest, Ruff, mypy, Playwright configuration.
 
-| What | Result | How |
-|---|---|---|
-| Highlight lands on the ink, at 0/90/180/270° page rotation | **> 85%** of page ink inside the computed rect | Rendered to a bitmap and measured, not asserted numerically |
-| Citation verification rate, clean digital PDF, end to end | **1.0** | Full pipeline, real Postgres + MinIO |
-| Tenant isolation | **48/48** | Parameterised over every table carrying `WorkspaceScopedMixin` |
-| Authorization matrix | **99/99** | Every role × permission pair vs. a hand-written expected table |
-| Cross-lingual similarity, identical deadline EN↔BN | **0.297** (control 0.018) | Live `text-embedding-3-small` — **a measured weakness**, see below |
-| **Real** cost per document | **$0.00088** | Live `gpt-4o-mini` extraction, from the usage ledger |
-| Bangla: text layer vs OCR | **69.4 → 97.1** similarity | The text layer is *worse* than OCR for Bengali |
-| RLS on the production database | **48/48** | Isolation suite run against live Neon |
+## Document processing workflow
 
-**Two design-document assumptions were measured and found wrong**, and are
-corrected in the docs:
+The API accepts a document and records its processing state. In queue mode it sends a job through Redis to the ARQ worker; inline mode is an alternative implemented in the queue service. The worker advances the document through normalization and parsing, optional OCR, extraction, citation alignment, and later indexing steps. Pipeline and document state are persisted in PostgreSQL.
 
-- The native-text-layer gate was specified as *"≥40% word-box coverage"*. A
-  **dense full A4 page measures 0.309** — a 40% gate would have sent every real
-  page to OCR. Wrong by ~50×.
-- `text-embedding-3-small` scores **0.297** on an identical deadline sentence in
-  English vs. Bangla. Above the 0.018 noise floor but weak for identical
-  meaning — direct evidence for the planned `bge-m3` benchmark, which the
-  blueprint had listed only as a hypothesis.
+The extraction layer returns candidate facts and requirements. Citation alignment attempts to match each quote to page text and geometry; the viewer uses that metadata to show the source. An unmatched or low-confidence citation must not be described as confirmed evidence.
 
-## Engineering decisions
+The local validation run used the PostgreSQL blob store. S3-compatible storage exists in code but has not been validated in the documented environment. OCR was unavailable during validation, so scanned documents and Bangla OCR were not established as working paths.
 
-Each has a documented alternative and a stated condition under which it would be
-wrong. Full reasoning in [`docs/`](docs/).
+## Task generation and status management
 
-| Decision | Why |
-|---|---|
-| **Normalize every input to PDF + page image + word map** | One viewer, one citation model, for every format |
-| **Citations are computed, not trusted** | Fuzzy span alignment → word boxes → rects; unmatched quotes are flagged, never faked |
-| **Full-document context first, RAG second** | A 10-page circular fits in context. RAG is for corpus scale, not document scale |
-| **Dates normalized by code, not the model** | `05/09/2026` is flagged *ambiguous* with both readings offered, never guessed |
-| **Confidence computed and calibrated** | Self-reported model confidence is poorly calibrated; an unverified citation is hard-capped |
-| **One `document_facts` table, not five** | Shared provenance; a new document vertical needs **no migration** |
-| **Postgres RLS beneath app-level filtering** | A forgotten `WHERE` returns zero rows instead of another tenant's data |
-| **Pipeline state in Postgres, queue is only delivery** | A crashed worker resumes at the failed stage — verified by a test |
-| **No LangChain** | ~300 lines of adapters keeps token accounting, cache breakpoints and cost attribution under our control |
-| **Document content is untrusted with zero capability** | The extraction call has no tools, no network, no database |
+Extracted requirements can produce tasks linked to their source facts. Tasks are persisted and surfaced in the workspace with their status and due date. The seeded run recorded four sample documents and twelve generated tasks; the dashboard also included a completed demo task. The visible overdue state in the screenshot reflects fixed sample dates and the capture date, not a current operational deadline feed.
 
-### On prompt injection, honestly
+## Local setup
 
-> DocFlow does not claim immunity to prompt injection. It is architected so
-> injection **cannot escalate**: the model has no tools, no network access and no
-> database access. The blast radius is incorrect extracted data in one workspace,
-> surfaced with a warning banner.
+The repository defines the following developer workflow in the root Makefile:
 
-The test suite includes a case asserting that a novel paraphrase is **not**
-caught by the heuristic — a security suite that only asserts successes is
-marketing.
+```bash
+cp .env.example .env
+make setup
+make seed
+make dev
+```
 
-## Documentation
+The Makefile's setup target installs Python and web dependencies, starts the Docker Compose services, and applies migrations. The seed target loads the demo workspace without LLM calls. The dev target runs the API, worker, and web application.
 
-| Doc | Contains |
-|---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | All 12 diagrams |
-| [EVALUATION.md](docs/EVALUATION.md) | Measured results, methodology, open gaps |
-| [00-product.md](docs/00-product.md) | Vision, users, journeys, MVP scope, roadmap |
-| [10-architecture.md](docs/10-architecture.md) | System, pipeline, jobs, tenancy, deployment |
-| [20-ai.md](docs/20-ai.md) | Extraction, RAG, evaluation framework, cost model |
-| [30-data-api.md](docs/30-data-api.md) | Schema, ER diagram, API contract |
-| [40-frontend.md](docs/40-frontend.md) | Frontend architecture, viewer deep-dive |
-| [50-security-ops.md](docs/50-security-ops.md) | 20-threat model, observability, testing, CI/CD |
-| [60-delivery.md](docs/60-delivery.md) | Repo structure, phases, hackathon strategy, risks |
+These targets were inspected in the source but were not rerun as a one-command workflow in this documentation pass. The recorded Windows validation used isolated PostgreSQL and Redis services with the PostgreSQL blob store. Direct Alembic config loading under the machine's cp936 locale required a temporary UTF-8/ASCII config outside the repository. For Windows reproduction, use a UTF-8 Git Bash or WSL environment and follow the repository's Makefile. The default Compose setup also includes MinIO; MinIO/S3 was not validated here.
 
-## Stack
+Create a local environment file from the template and configure it for the services you run. For the validated demo path, use the Stub Provider with demo mode enabled and PostgreSQL blob storage. Do not put credentials in the repository. See [.env.example](.env.example) for configuration names; this README intentionally does not reproduce credential values.
 
-**Backend** Python 3.12 · FastAPI · SQLAlchemy 2 (async) · Alembic · ARQ · Pydantic v2
-**Data** PostgreSQL 16 · pgvector (HNSW) · RLS · Redis · S3/R2 (MinIO locally)
-**AI** Anthropic / OpenAI behind a tier-based abstraction · PyMuPDF · Tesseract · rapidfuzz · dateparser
-**Tooling** uv · ruff · mypy · pytest · Docker · GitHub Actions
+## Running tests and checks
 
-## Status
+The repository's Makefile defines the test and check commands. For example:
 
-Backend is **working end to end**: upload → validate → normalize → parse → OCR →
-extract → align → chunk → embed → index, with facts, citations, rectangles and
-normalized due dates returned over HTTP.
+```bash
+make test-unit
+make test-web
+make lint
+npm run check:mermaid
+```
 
-| Area | State |
-|---|---|
-| Schema, migrations, RLS | ✅ 3 migrations, round-trip verified, no drift |
-| Document pipeline (11 stages) | ✅ resumable, idempotent, integration-tested |
-| Span alignment & citations | ✅ verified against rendered pixels |
-| LLM abstraction + usage ledger | ✅ 3 providers, cost per call recorded |
-| Auth, permissions, API | ✅ 335 backend tests |
-| Frontend + viewer | ✅ 5/5 Playwright E2E, run against **production** |
-| Deployment | ✅ live and free — Vercel + Render + Neon |
-| Grounded chat / hybrid retrieval | 🚧 chunks + embeddings land; query path next |
-| Labeled eval dataset | ⬜ the blocking gap — see [EVALUATION.md](docs/EVALUATION.md) §6 |
+Current local verification on 2026-10-27: 347 non-eval backend tests passed; the 7 frontend unit tests passed; Ruff lint and format, mypy (88 files), TypeScript, ESLint, and the production build passed. ESLint and the production build each report the existing custom-font warning. The date regression is covered by backend extraction/API checks and two frontend timezone-formatting cases. Detailed commands, outcomes, environment, and unrun paths are recorded in [reports/validation/FINAL_LOCAL_QA.md](reports/validation/FINAL_LOCAL_QA.md).
 
-**Before scaling the wedge:** run the Bangla OCR spike — 20 real scanned
-circulars through Tesseract `ben`, accuracy measured by hand. The entire
-Bangladesh-first thesis rests on that assumption and it is still unvalidated.
+The screenshot browser flow is not a Playwright E2E suite run. Playwright E2E and paid-provider evaluation were not run. The paid evaluation target is explicitly marked as costing money in the Makefile.
+
+## Demo and screenshots
+
+The earlier captures `01-workspace.png` and `02-citation-detail.png` are retained as historical evidence. The current screenshots `03-workspace-date-fixed.png` and `04-citation-date-fixed.png` were captured from the locally running application on 2026-10-27 after opening the seeded demo workspace. They show the workspace and a selected citation whose displayed date is 15 September 2026, matching the source quote. The demo path used the Stub Provider and did not use a paid model or a real account.
+
+The screen shows 20 facts checked and a 100% citation verification indicator for this seeded dataset. This is a quote-alignment result for the demo, not a measure of semantic correctness, date accuracy, or production reliability.
+
+## Engineering decisions visible in the implementation
+
+- Processing state is persisted in PostgreSQL; Redis is used to deliver queued work.
+- The worker can process asynchronously, while an inline mode is also available.
+- Citation metadata connects extracted facts to page text and viewer highlights.
+- AI tasks are constrained by a database check that requires an AI-originated task to reference a source fact.
+- The provider layer allows the deterministic Stub Provider to exercise a no-paid-model path.
+- PostgreSQL blob storage is a documented alternative to S3-compatible storage, but only the PostgreSQL path was validated in the reported run.
+
+## Known limitations and unverified paths
+
+- **Date interpretation:** the reproduced September 15 versus September 16 display mismatch was corrected and covered by regression checks. Other date formats, ambiguous source timezones, and multilingual expressions still need broader evaluation; citation quote matching does not establish semantic correctness.
+- **OCR:** an OCR engine was unavailable in the validation environment. Scanned-image extraction and Bangla OCR are not verified; the seeded Bangla document had no extracted facts in that run.
+- **MinIO/S3:** not validated. The local validation used PostgreSQL blob storage.
+- **Playwright E2E:** not run as a test suite.
+- **Paid model evaluation:** not run; no paid provider was used for screenshots or the stub demo.
+- **Deployment and usage:** this portfolio material does not claim a live production deployment, customers, or production usage.
+- **Fresh Windows setup:** the standard Makefile flow was not rerun end-to-end on Windows; Alembic config encoding required a temporary workaround in the recorded run.
+
+## Upstream attribution and my contributions
+
+### Project origin and upstream attribution
+
+This repository is a fork of [A-K-M-Asifuzzaman/DocFlow-AI](https://github.com/A-K-M-Asifuzzaman/DocFlow-AI). The core product, document pipeline, UI, database design, provider adapters, task model, and existing project documentation originate in the upstream repository. They are not claimed as original work in this portfolio.
+
+### My contributions
+
+### Local changes confirmed in this checkout
+
+The local contribution in this portfolio update, based on branch portfolio/initial-validation at the upstream baseline commit, consists of:
+
+- Added a Vitest configuration and two focused frontend test files, with seven unit cases covering existing utility/type behavior and deadline timezone formatting.
+- Added an ESLint flat configuration and wired the web lint script to ESLint CLI; the package manifests include the needed lint/test dependencies.
+- Fixed Ruff formatting and mypy findings across the Python API, including explicit typing and a rename from the conflicting PipelineStage index property to position.
+- Made a source-inspection security test read source as UTF-8 explicitly for Windows.
+- Corrected the README seed comment from three to four sample documents, matching the seed source and successful seed run.
+- Added this portfolio README, the editable architecture diagram, and real local screenshots. The newer date-fix captures are separate files; the earlier screenshots remain intact as historical evidence.
+- Fixed the traced deadline path: the Stub Provider now extracts an explicit time, the extraction layer passes it into normalization, and deadline calendar labels use Asia/Dhaka by default while preserving raw date/time evidence in the citation card.
+
+The code changes above are supported by the dated validation report. They are limited engineering and documentation changes; they do not make the upstream product my original project. The README rewrite and diagram are part of this portfolio documentation update, not upstream product features.
+
+### Validation evidence
+
+The current check matrix, exact commands, screenshots, database migration, and known unrun paths are recorded in [reports/validation/FINAL_LOCAL_QA.md](reports/validation/FINAL_LOCAL_QA.md). The date root-cause analysis is in [reports/validation/DATE_DISCREPANCY_INVESTIGATION.md](reports/validation/DATE_DISCREPANCY_INVESTIGATION.md). Results describe local tests and a Stub Provider demo, not production usage.
+
+### Known limitations
+
+OCR/scanned documents, MinIO/S3, the Playwright E2E suite, paid model evaluation, unknown source timezones, and a clean one-command Windows setup remain unverified. See the limitations section above and the QA report.
+
+### Upstream features versus local contribution
+
+The core application capabilities described in the feature list pre-existed in the fork. The local contribution evidenced here is primarily test/lint/type-check setup, narrow correctness/compatibility fixes, and portfolio documentation. The validation report records the commands and outcomes for those changes.
 
 ## License
 
-MIT
+The repository retains the upstream MIT License and its existing copyright notice in [LICENSE](LICENSE). This README does not change or replace that license.

@@ -68,7 +68,7 @@ def test_no_service_account_credential_is_used() -> None:
     from pathlib import Path
 
     source = Path(__file__).parents[2] / "src/docflow/services/google_auth.py"
-    tree = ast.parse(source.read_text())
+    tree = ast.parse(source.read_text(encoding="utf-8"))
 
     imported: set[str] = set()
     for node in ast.walk(tree):

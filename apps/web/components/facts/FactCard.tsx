@@ -134,7 +134,9 @@ function factDetail(fact: Fact): string | null {
   const p = fact.payload;
   if (fact.kind === 'deadline') {
     const formatted = formatDeadline(fact.due_at);
-    const raw = p.raw_date_text ? String(p.raw_date_text) : null;
+    const rawDate = p.raw_date_text ? String(p.raw_date_text) : null;
+    const rawTime = p.time_of_day_text ? String(p.time_of_day_text) : null;
+    const raw = [rawDate, rawTime].filter((value): value is string => Boolean(value)).join(' ') || null;
     // Always show what the document actually said, so a misparse is visible
     // and correctable rather than silently wrong.
     return raw && !formatted.startsWith(raw) ? `${formatted}  ·  “${raw}”` : formatted;

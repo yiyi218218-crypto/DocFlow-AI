@@ -204,7 +204,7 @@ def _mark_document_failed(
     document.error_detail = failure.detail
     document.processing_completed_at = datetime.now(UTC)
 
-    if reached is not None and reached.index >= PARTIAL_OK_AFTER.index:
+    if reached is not None and reached.position >= PARTIAL_OK_AFTER.position:
         document.status = DocumentStatus.PARTIAL
     else:
         document.status = DocumentStatus.FAILED
@@ -226,7 +226,7 @@ async def reset_stages_from(
 
     reset = 0
     for row in rows:
-        if row.stage.index >= stage.index:
+        if row.stage.position >= stage.position:
             row.status = StageStatus.PENDING
             row.idempotency_key = None
             row.attempt = 0

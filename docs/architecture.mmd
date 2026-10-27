@@ -1,0 +1,33 @@
+flowchart LR
+    U["User"] --> UI["Next.js 15 / React UI"]
+    UI -->|"same-origin /api/v1 rewrite"| API["FastAPI API"]
+
+    API --> DB[("PostgreSQL 16<br/>SQLAlchemy / Alembic<br/>workspace data, facts, tasks, stages, pgvector")]
+    API --> STORE["File storage adapter"]
+    STORE --> PGSTORE[("PostgreSQL blobstore<br/>validated locally")]
+    STORE -.-> S3["S3-compatible backend<br/>implemented; not validated"]
+
+    API --> QUEUE["Redis queue"]
+    QUEUE --> WORKER["ARQ worker"]
+    API -.-> INLINE["Inline processing mode<br/>alternative"]
+    WORKER --> PIPE["Document pipeline"]
+    INLINE --> PIPE
+
+    PIPE --> PDF["PDF normalization and parsing<br/>PyMuPDF"]
+    PDF --> OCR["Optional OCR stage<br/>engine unavailable in validation run"]
+    PDF --> EXTRACT["Fact and requirement extraction"]
+    OCR --> EXTRACT
+    EXTRACT --> PROVIDER["LLM provider interface"]
+    PROVIDER --> STUB["Stub provider<br/>demo path validated"]
+    PROVIDER -.-> PAID["Anthropic / OpenAI providers<br/>paid evaluation not run"]
+
+    EXTRACT --> ALIGN["Quote-to-source alignment"]
+    ALIGN --> FACTS["Quote-matched or flagged facts"]
+    FACTS --> TASKS["Source-linked tasks"]
+    FACTS --> DB
+    TASKS --> DB
+    WORKER --> DB
+    WORKER --> STORE
+    DB --> API
+    API --> UI
+    UI -->|"click citation"| PDF

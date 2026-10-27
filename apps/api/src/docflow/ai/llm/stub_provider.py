@@ -78,6 +78,12 @@ _DATE_HINT = re.compile(
 )
 
 
+_TIME_HINT = re.compile(
+    r"\b(?:(?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*[ap]\.?m\.?|(?:[01]?\d|2[0-3]):[0-5]\d)\b",
+    re.IGNORECASE,
+)
+
+
 class StubProvider:
     name = "stub"
 
@@ -201,6 +207,7 @@ class StubProvider:
         for sentence in sentences:
             lowered = sentence.lower()
             date_match = _DATE_HINT.search(sentence)
+            time_match = _TIME_HINT.search(sentence)
 
             if date_match and any(cue in lowered for cue in _DEADLINE_CUES):
                 raw = date_match.group(0)
@@ -215,6 +222,7 @@ class StubProvider:
                         "llm_confidence": 0.8,
                         "label": "Application deadline",
                         "raw_date_text": raw,
+                        "time_of_day_text": time_match.group(0) if time_match else None,
                         "date_kind": "absolute",
                         "is_primary": "submit" in lowered or "deadline" in lowered,
                     }

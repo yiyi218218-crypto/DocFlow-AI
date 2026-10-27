@@ -11,11 +11,16 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+const DEADLINE_TIME_ZONE = 'Asia/Dhaka';
+
 /**
  * Deadlines are what this product is for, so they get relative phrasing —
  * "in 3 days" is actionable in a way "15 Sep 2026" is not.
  */
-export function formatDeadline(iso: string | null): string {
+export function formatDeadline(
+  iso: string | null,
+  timeZone = DEADLINE_TIME_ZONE,
+): string {
   if (!iso) return 'No date';
   const date = new Date(iso);
   const days = Math.ceil((date.getTime() - Date.now()) / 86_400_000);
@@ -24,6 +29,7 @@ export function formatDeadline(iso: string | null): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone,
   });
 
   if (days < 0) return `${absolute} · overdue`;
@@ -64,6 +70,10 @@ export function isBangla(text: string): boolean {
 }
 
 /** Compact date for dense rails: "15 Sep". */
-export function formatDayMonth(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+export function formatDayMonth(iso: string, timeZone = DEADLINE_TIME_ZONE): string {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone,
+  });
 }

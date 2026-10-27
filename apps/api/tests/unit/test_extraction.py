@@ -20,7 +20,7 @@ CIRCULAR = """University of Dhaka
 Office of the Registrar
 Admission Circular 2026-2027
 
-Applications must be submitted by 15 September 2026.
+Applications must be submitted by 15 September 2026 at 5:00 PM.
 Required documents include an academic transcript.
 Applicants must also provide a copy of the National ID card.
 Two passport-size photographs are required with the application.
@@ -160,6 +160,9 @@ async def test_deadline_is_extracted_and_normalised(result) -> None:
     assert deadline.normalized_date.status is NormalizationStatus.OK
     assert deadline.due_at is not None
     assert (deadline.due_at.year, deadline.due_at.month, deadline.due_at.day) == (2026, 9, 15)
+    assert deadline.due_at.hour == 17
+    assert deadline.due_at.utcoffset().total_seconds() == 6 * 3600
+    assert deadline.payload["time_of_day_text"] == "5:00 PM"
     # The raw text is preserved so the UI can show what the document said.
     assert deadline.payload["raw_date_text"]
 

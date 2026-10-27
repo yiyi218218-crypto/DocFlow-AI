@@ -127,7 +127,7 @@ async def get_document(
     detail = DocumentDetail.model_validate(document)
     detail.stages = [
         StageOut.model_validate(s)
-        for s in sorted(document.stages, key=lambda s: PipelineStage(s.stage).index)
+        for s in sorted(document.stages, key=lambda s: PipelineStage(s.stage).position)
     ]
 
     # A completed document's representation is immutable until reprocessing, so
@@ -168,7 +168,7 @@ async def get_analysis(
     detail = DocumentDetail.model_validate(result["document"])
     detail.stages = [
         StageOut.model_validate(s)
-        for s in sorted(result["document"].stages, key=lambda s: PipelineStage(s.stage).index)
+        for s in sorted(result["document"].stages, key=lambda s: PipelineStage(s.stage).position)
     ]
 
     return DocumentAnalysisOut(

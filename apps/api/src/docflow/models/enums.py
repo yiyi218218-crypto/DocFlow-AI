@@ -69,7 +69,7 @@ class PipelineStage(StrEnum):
         ]
 
     @property
-    def index(self) -> int:
+    def position(self) -> int:
         return self.ordered().index(self)
 
 

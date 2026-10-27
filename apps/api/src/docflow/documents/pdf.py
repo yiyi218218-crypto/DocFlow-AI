@@ -218,7 +218,7 @@ def _parse_page(page: pymupdf.Page, page_number: int) -> ParsedPage:
     )
 
 
-def _paragraph_gap_threshold(raw_words: list) -> float:  # type: ignore[type-arg]
+def _paragraph_gap_threshold(raw_words: list) -> float:
     """Vertical gap above which a line break is a paragraph break.
 
     Derived from the page's own geometry rather than a fixed multiple of font

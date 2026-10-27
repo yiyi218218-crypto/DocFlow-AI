@@ -9,10 +9,11 @@ and a user still receives each reminder once.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.engine import CursorResult
 
 from docflow.core.database import system_session
 from docflow.core.logging import get_logger
@@ -78,7 +79,7 @@ async def schedule_due_reminders() -> dict[str, Any]:
                     )
                     .on_conflict_do_nothing()
                 )
-                result = await session.execute(statement)
+                result = cast(CursorResult[Any], await session.execute(statement))
                 created += result.rowcount or 0
 
     if created:

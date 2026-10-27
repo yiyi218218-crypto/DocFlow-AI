@@ -88,9 +88,7 @@ async def delete_objects(keys: list[str]) -> None:
     if not keys:
         return
     async with system_session() as session:
-        await session.execute(
-            text("DELETE FROM blob_store WHERE key = ANY(:keys)"), {"keys": keys}
-        )
+        await session.execute(text("DELETE FROM blob_store WHERE key = ANY(:keys)"), {"keys": keys})
 
 
 async def list_prefix(prefix: str) -> list[str]:
@@ -114,9 +112,7 @@ async def promote(source_key: str, destination_key: str) -> None:
             ),
             {"src": source_key, "dst": destination_key},
         )
-        await session.execute(
-            text("DELETE FROM blob_store WHERE key = :src"), {"src": source_key}
-        )
+        await session.execute(text("DELETE FROM blob_store WHERE key = :src"), {"src": source_key})
 
 
 async def check_storage() -> bool:

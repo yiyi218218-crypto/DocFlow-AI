@@ -30,8 +30,7 @@ from docflow.core.logging import get_logger
 logger = get_logger(__name__)
 
 JWKS_URL = (
-    "https://www.googleapis.com/service_accounts/v1/jwk/"
-    "securetoken@system.gserviceaccount.com"
+    "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
 )
 KEY_CACHE_SECONDS = 3600
 
@@ -97,9 +96,7 @@ def verify_id_token(token: str) -> GoogleIdentity:
         raise Unauthenticated("That Google account has no email address attached.")
 
     if not payload.get("email_verified"):
-        raise Unauthenticated(
-            "Your Google email address is not verified. Verify it and try again."
-        )
+        raise Unauthenticated("Your Google email address is not verified. Verify it and try again.")
 
     return GoogleIdentity(
         subject=str(payload["sub"]),

@@ -33,11 +33,11 @@ target_metadata = Base.metadata
 EXTENSION_TABLES = {"vector", "spatial_ref_sys"}
 
 
-def include_object(obj, name, type_, reflected, compare_to):  # type: ignore[no-untyped-def]
+def include_object(obj, name, type_, reflected, compare_to):
     return not (type_ == "table" and name in EXTENSION_TABLES)
 
 
-def render_item(type_, obj, autogen_context):  # type: ignore[no-untyped-def]
+def render_item(type_, obj, autogen_context):
     """Teach autogenerate to emit pgvector's Vector type with its import."""
     if type_ == "type" and isinstance(obj, Vector):
         autogen_context.imports.add("from pgvector.sqlalchemy import Vector")

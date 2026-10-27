@@ -14,9 +14,10 @@ from __future__ import annotations
 import asyncio
 import random
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from docflow.ai.llm.base import (
+    EmbeddingProvider,
     EmbeddingResponse,
     LLMProvider,
     LLMResponse,
@@ -225,12 +226,12 @@ async def embed_texts(
     """Embed a batch. Caching by content hash happens one layer up, in
     ai/embeddings/cache.py, so this stays a thin provider call."""
     model = ModelSpec.parse(settings.embedding_model)
-    provider = get_provider(model.provider)
+    provider = cast(EmbeddingProvider, get_provider(model.provider))
 
     last_error: ProviderError | None = None
     for attempt in range(1, settings.llm_max_retries + 1):
         try:
-            response = await provider.embed(  # type: ignore[attr-defined]
+            response = await provider.embed(
                 model=model,
                 texts=texts,
                 dimensions=settings.embedding_dimensions,

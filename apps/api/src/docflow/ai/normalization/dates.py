@@ -144,7 +144,7 @@ def normalize_date(
         "RELATIVE_BASE": (reference_date or now).astimezone(tz).replace(tzinfo=None),
     }
 
-    parsed = dateparser.parse(prepared, languages=["en"], settings=settings)  # type: ignore[arg-type]
+    parsed = dateparser.parse(prepared, languages=["en"], settings=settings)
     if parsed is None:
         return NormalizedDate(raw_text=raw, reason="unparsed")
 
@@ -258,7 +258,7 @@ def _ambiguous_alternative(
         return None
 
     mdy_settings = {**settings, "DATE_ORDER": "MDY"}
-    return dateparser.parse(text, languages=["en"], settings=mdy_settings)  # type: ignore[arg-type]
+    return dateparser.parse(text, languages=["en"], settings=mdy_settings)
 
 
 def to_utc(value: datetime | None) -> datetime | None:

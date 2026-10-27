@@ -63,15 +63,15 @@ async def embed_chunks(
             operation="embedding",
             workspace_id=workspace_id,
         )
-        for chunk, vector in zip(batch, response.vectors, strict=True):
-            fresh[chunk.content_sha256] = vector
+        for chunk, embedded_vector in zip(batch, response.vectors, strict=True):
+            fresh[chunk.content_sha256] = embedded_vector
 
-    for sha, vector in fresh.items():
+    for sha, fresh_vector in fresh.items():
         # ON CONFLICT DO NOTHING: two documents embedding the same boilerplate
         # concurrently is expected, not an error.
         await session.execute(
             pg_insert(EmbeddingCache)
-            .values(content_sha256=sha, model_id=model_id, embedding=vector)
+            .values(content_sha256=sha, model_id=model_id, embedding=fresh_vector)
             .on_conflict_do_nothing(index_elements=["content_sha256", "model_id"])
         )
 

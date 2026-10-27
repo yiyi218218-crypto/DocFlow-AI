@@ -22,7 +22,7 @@ pytestmark = pytest.mark.integration
 CIRCULAR = """University of Dhaka
 Admission Circular 2026-2027
 
-Applications must be submitted by 15 September 2026.
+Applications must be submitted by 15 September 2026 at 5:00 PM.
 Required documents include an academic transcript.
 Applicants must also provide a copy of the National ID card.
 """
@@ -258,7 +258,8 @@ async def test_full_upload_to_analysis_flow(client, account) -> None:
     assert deadlines, "the circular states a deadline"
 
     deadline = deadlines[0]
-    assert deadline["due_at"].startswith("2026-09-15")
+    assert deadline["due_at"].startswith("2026-09-15T11:00:00Z")
+    assert deadline["payload"]["time_of_day_text"] == "5:00 PM"
     assert deadline["citation_status"] in ("verified", "partial")
     assert deadline["source_page"] == 1
 

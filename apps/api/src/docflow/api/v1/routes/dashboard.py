@@ -160,17 +160,19 @@ async def get_dashboard(
     ]
 
     recent_rows = (
-        await session.execute(
-            select(Document)
-            .where(Document.workspace_id == workspace_id, Document.deleted_at.is_(None))
-            .order_by(Document.created_at.desc())
-            .limit(5)
+        (
+            await session.execute(
+                select(Document)
+                .where(Document.workspace_id == workspace_id, Document.deleted_at.is_(None))
+                .order_by(Document.created_at.desc())
+                .limit(5)
+            )
         )
-    ).scalars().all()
-
-    verified_rate = (
-        round(fact_stats.verified / fact_stats.total, 3) if fact_stats.total else None
+        .scalars()
+        .all()
     )
+
+    verified_rate = round(fact_stats.verified / fact_stats.total, 3) if fact_stats.total else None
 
     return {
         "documents": {
